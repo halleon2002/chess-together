@@ -6,6 +6,7 @@
 <title>Kings & Pawns</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
   :root {
     --bg: #14181f;
@@ -176,6 +177,45 @@
   }
   .start-btn:hover { background: var(--king-glow); border-color: var(--king-glow); }
 
+  .room-code {
+    margin-top: 12px;
+    text-align: center;
+    font-family: 'Cinzel', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--king-glow);
+    background: #232a36;
+    border: 1px dashed var(--king-glow);
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .room-input {
+    width: 100%;
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
+    text-align: center;
+    text-transform: uppercase;
+    background: #232a36;
+    border: 1px solid #333c4c;
+    border-radius: 10px;
+    color: var(--text);
+    padding: 10px;
+  }
+  .room-input:focus { outline: none; border-color: var(--king-glow); }
+
+  .online-status {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    text-align: center;
+    min-height: 1.2em;
+  }
+  .online-status.error { color: #e07a7a; }
+  .online-status.success { color: var(--legal); }
+
   .rules-note {
     max-width: 480px;
     margin-top: 26px;
@@ -232,7 +272,27 @@
         <div class="mode-buttons" id="opponentButtons">
           <button data-value="ai" class="mode-btn active">AI</button>
           <button data-value="player" class="mode-btn">Local Player (2P)</button>
+          <button data-value="online" class="mode-btn">Online</button>
         </div>
+      </div>
+
+      <div class="mode-group" id="onlinePanel" style="display:none;">
+        <div class="mode-buttons" id="onlineTabButtons" style="margin-bottom:10px;">
+          <button data-value="create" class="mode-btn active online-tab">Create Room</button>
+          <button data-value="join" class="mode-btn online-tab">Join Room</button>
+        </div>
+
+        <div id="createTab">
+          <button id="createRoomBtn" class="start-btn" style="margin-top:0;">Create Room</button>
+          <div id="roomCodeDisplay" class="room-code" style="display:none;"></div>
+        </div>
+
+        <div id="joinTab" style="display:none;">
+          <input id="joinCodeInput" class="room-input" placeholder="Enter room code" maxlength="6" autocapitalize="characters">
+          <button id="joinRoomBtn" class="start-btn" style="margin-top:8px;">Join Room</button>
+        </div>
+
+        <div id="onlineStatus" class="online-status"></div>
       </div>
 
       <button id="startBtn" class="start-btn">Start Game</button>
@@ -427,9 +487,19 @@
   let selected = null;
   let isGameOver = false;
   let humanSide = "king";
-  let vsAI = true;
+  let mode = "ai"; // "ai" | "local" | "online"
 
-  function isHumanTurn() { return !vsAI || currentTurn === humanSide; }
+  // ---------- Online (WebRTC via PeerJS) state ----------
+  let peer = null;
+  let conn = null;
+  let isHost = false;
+  const ROOM_PREFIX = "kap-";
+
+  function isHumanTurn() {
+    if (mode === "local") return true;
+    if (mode === "online") return conn && conn.open && currentTurn === humanSide;
+    return currentTurn === humanSide; // ai
+  }
 
   // ---------- Rendering ----------
   const svg = document.getElementById("board");
@@ -441,6 +511,10 @@
   const overlayTitle = document.getElementById("overlayTitle");
   const overlaySubtitle = document.getElementById("overlaySubtitle");
   const startScreen = document.getElementById("startScreen");
+  const onlinePanel = document.getElementById("onlinePanel");
+  const onlineStatus = document.getElementById("onlineStatus");
+  const startBtn = document.getElementById("startBtn");
+  const roomCodeDisplay = document.getElementById("roomCodeDisplay");
 
   function coord(u) { return PAD + u * SPACING; }
 
@@ -574,7 +648,13 @@
   }
 
   function updateSubtitle() {
-    if (!vsAI) { subtitle.textContent = "Local 2-player \u2014 pass the device each turn."; return; }
+    if (mode === "local") { subtitle.textContent = "Local 2-player \u2014 pass the device each turn."; return; }
+    if (mode === "online") {
+      subtitle.textContent = humanSide === "king"
+        ? "Online match \u2014 you command the Kings."
+        : "Online match \u2014 you command the Pawns.";
+      return;
+    }
     subtitle.textContent = humanSide === "king"
       ? "You command the Kings. The Pawns are played by the machine."
       : "You command the Pawns. The Kings are played by the machine.";
@@ -593,13 +673,97 @@
     }
   }
 
+  // ---------- Online networking (PeerJS / WebRTC) ----------
+  function setOnlineStatus(text, cls) {
+    onlineStatus.textContent = text || "";
+    onlineStatus.className = "online-status" + (cls ? " " + cls : "");
+  }
+
+  function randomRoomCode(len) {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I ambiguity
+    let code = "";
+    for (let i = 0; i < len; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
+
+  function teardownConnection() {
+    if (peer) { try { peer.destroy(); } catch (e) {} }
+    peer = null;
+    conn = null;
+  }
+
+  function createRoom() {
+    teardownConnection();
+    isHost = true;
+    const code = randomRoomCode(4);
+    roomCodeDisplay.style.display = "none";
+    setOnlineStatus("Creating room\u2026");
+    peer = new Peer(ROOM_PREFIX + code.toLowerCase());
+    peer.on("open", () => {
+      roomCodeDisplay.style.display = "block";
+      roomCodeDisplay.textContent = code;
+      setOnlineStatus("Waiting for your friend to join\u2026");
+    });
+    peer.on("connection", incoming => { conn = incoming; setupConnection(); });
+    peer.on("error", err => setOnlineStatus("Connection error (" + err.type + "). Try creating a new room.", "error"));
+  }
+
+  function joinRoom(codeRaw) {
+    const code = (codeRaw || "").trim().toLowerCase();
+    if (!code) { setOnlineStatus("Enter a room code first.", "error"); return; }
+    teardownConnection();
+    isHost = false;
+    setOnlineStatus("Connecting\u2026");
+    peer = new Peer();
+    peer.on("open", () => {
+      conn = peer.connect(ROOM_PREFIX + code, { reliable: true });
+      setupConnection();
+    });
+    peer.on("error", err => setOnlineStatus("Connection error (" + err.type + "). Check the code and try again.", "error"));
+  }
+
+  function setupConnection() {
+    conn.on("open", () => {
+      setOnlineStatus("Connected!", "success");
+      if (isHost) {
+        conn.send({ type: "assignSide", side: other(humanSide) });
+        beginOnlineGame();
+      }
+      // Guest starts once it receives "assignSide" below.
+    });
+    conn.on("data", onData);
+    conn.on("close", () => setOnlineStatus("Your friend disconnected.", "error"));
+    conn.on("error", () => setOnlineStatus("Connection error.", "error"));
+  }
+
+  function onData(msg) {
+    if (!msg || !msg.type) return;
+    if (msg.type === "assignSide") {
+      humanSide = msg.side;
+      beginOnlineGame();
+    } else if (msg.type === "move") {
+      tryMove(board, msg.from, msg.to);
+      afterMove({ broadcast: false });
+    } else if (msg.type === "restart") {
+      resetBoardLocal();
+    }
+  }
+
+  function beginOnlineGame() {
+    mode = "online";
+    startScreen.classList.remove("show");
+    updateSubtitle();
+    resetBoardLocal();
+  }
+
   // ---------- Interaction ----------
   function onPointClicked(p) {
     if (isGameOver || !isHumanTurn()) return;
 
     if (selected) {
-      const result = tryMove(board, selected, p);
-      if (result) { selected = null; afterMove(); return; }
+      const from = selected;
+      const result = tryMove(board, from, p);
+      if (result) { selected = null; afterMove({ broadcast: true, from, to: p }); return; }
       const piece = getPiece(board, p);
       if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); return; }
       selected = null; refreshHighlights();
@@ -610,8 +774,14 @@
     if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); }
   }
 
-  function afterMove() {
+  function afterMove(opts) {
+    opts = opts || {};
     syncPieces();
+
+    if (mode === "online" && opts.broadcast && conn && conn.open) {
+      conn.send({ type: "move", from: opts.from, to: opts.to });
+    }
+
     const winner = checkWinner(board);
     if (winner) {
       isGameOver = true;
@@ -623,12 +793,12 @@
     currentTurn = other(currentTurn);
     updateStatus();
     refreshHighlights();
-    maybeTriggerAI();
+    if (mode === "ai") maybeTriggerAI();
   }
 
   function maybeTriggerAI() {
     if (isGameOver) return;
-    if (vsAI && currentTurn !== humanSide) setTimeout(() => aiMove(currentTurn), 550);
+    if (mode === "ai" && currentTurn !== humanSide) setTimeout(() => aiMove(currentTurn), 550);
   }
 
   function aiMove(side) {
@@ -636,10 +806,10 @@
     const move = chooseAIMove(board, side);
     if (!move) return;
     tryMove(board, move.from, move.to);
-    afterMove();
+    afterMove({ broadcast: false });
   }
 
-  function restart() {
+  function resetBoardLocal() {
     board = createBoard();
     currentTurn = "king";
     selected = null;
@@ -648,11 +818,21 @@
     syncPieces();
     updateStatus();
     refreshHighlights();
-    maybeTriggerAI();
+  }
+
+  function restart() {
+    resetBoardLocal();
+    if (mode === "online" && conn && conn.open) conn.send({ type: "restart" });
+    if (mode === "ai") maybeTriggerAI();
   }
 
   function openModeScreen() {
     overlay.classList.remove("show");
+    teardownConnection();
+    onlinePanel.style.display = "none";
+    startBtn.style.display = "block";
+    roomCodeDisplay.style.display = "none";
+    setOnlineStatus("");
     startScreen.classList.add("show");
   }
 
@@ -670,9 +850,26 @@
   }
 
   wireToggleGroup("sideButtons", value => { humanSide = value; });
-  wireToggleGroup("opponentButtons", value => { vsAI = (value === "ai"); });
+  wireToggleGroup("opponentButtons", value => {
+    mode = value === "player" ? "local" : value; // "ai" | "local" | "online"
+    const showOnline = mode === "online";
+    onlinePanel.style.display = showOnline ? "block" : "none";
+    startBtn.style.display = showOnline ? "none" : "block";
+    if (showOnline) setOnlineStatus("");
+  });
+  wireToggleGroup("onlineTabButtons", value => {
+    document.getElementById("createTab").style.display = value === "create" ? "block" : "none";
+    document.getElementById("joinTab").style.display = value === "create" ? "none" : "block";
+    setOnlineStatus("");
+  });
+
+  document.getElementById("createRoomBtn").addEventListener("click", createRoom);
+  document.getElementById("joinRoomBtn").addEventListener("click", () => {
+    joinRoom(document.getElementById("joinCodeInput").value);
+  });
 
   document.getElementById("startBtn").addEventListener("click", () => {
+    teardownConnection();
     startScreen.classList.remove("show");
     updateSubtitle();
     restart();
