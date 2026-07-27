@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Kings & Pawns</title>
+<title>Board Games</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -17,7 +17,12 @@
     --king-glow: #f4c063;
     --pawn: #4f8fd1;
     --pawn-glow: #7db3ee;
+    --white-pc: #eee6d4;
+    --white-glow: #fffaf0;
+    --black-pc: #2b3140;
+    --black-glow: #4a5568;
     --legal: #5fbf7a;
+    --capture: #e07a4a;
     --selected: #f4c063;
     --text: #eee6d4;
     --text-dim: #9aa0ad;
@@ -68,12 +73,12 @@
 
   .status-item { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
   .status-dot { width: 12px; height: 12px; border-radius: 50%; }
-  .status-dot.king { background: var(--king); box-shadow: 0 0 8px var(--king-glow); }
-  .status-dot.pawn { background: var(--pawn); box-shadow: 0 0 8px var(--pawn-glow); }
+  .status-dot.a { background: var(--dot-a, var(--king)); box-shadow: 0 0 8px var(--dot-a-glow, var(--king-glow)); }
+  .status-dot.b { background: var(--dot-b, var(--pawn)); box-shadow: 0 0 8px var(--dot-b-glow, var(--pawn-glow)); }
   .status-divider { width: 1px; height: 20px; background: #333c4c; }
 
-  #turnLabel.active-king { color: var(--king-glow); }
-  #turnLabel.active-pawn { color: var(--pawn-glow); }
+  #turnLabel.active-a { color: var(--dot-a-glow, var(--king-glow)); }
+  #turnLabel.active-b { color: var(--dot-b-glow, var(--pawn-glow)); }
 
   .board-wrap {
     position: relative;
@@ -88,14 +93,20 @@
 
   .point-dot { transition: fill 0.15s ease; }
   .point-dot.legal { fill: var(--legal); }
+  .point-dot.capture { fill: var(--capture); }
   .point-dot.selected { fill: var(--selected); }
 
-  .piece-group { pointer-events: none; transition: opacity 0.3s ease, transform 0.3s ease; }
+  .piece-group { pointer-events: none; }
 
   .king-shape { fill: var(--king); }
   .pawn-shape { fill: var(--pawn); }
+  .ck-white { fill: var(--white-pc); }
+  .ck-black { fill: var(--black-pc); stroke: #8791a3; stroke-width: 1.5; }
+  .ck-king-mark { fill: none; stroke-width: 2.5; }
+  .ck-king-mark.on-white { stroke: var(--king); }
+  .ck-king-mark.on-black { stroke: var(--king-glow); }
 
-  .controls { margin-top: 20px; display: flex; gap: 12px; }
+  .controls { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 
   button {
     font-family: 'Cinzel', serif;
@@ -130,7 +141,7 @@
     border-radius: 18px;
     padding: 32px 36px;
     text-align: center;
-    max-width: 360px;
+    max-width: 380px;
     width: 100%;
   }
 
@@ -139,9 +150,21 @@
     font-size: 1.7rem;
     margin: 0 0 8px;
   }
-  .overlay-card h2.king-win { color: var(--king-glow); }
-  .overlay-card h2.pawn-win { color: var(--pawn-glow); }
+  .overlay-card h2.a-win { color: var(--king-glow); }
+  .overlay-card h2.b-win { color: var(--pawn-glow); }
   .overlay-card p { color: var(--text-dim); margin: 0 0 20px; font-size: 0.92rem; }
+
+  .game-pick-row { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+  .game-pick-btn {
+    padding: 16px;
+    font-size: 1.05rem;
+    background: #232a36;
+    border: 1px solid #333c4c;
+    text-align: left;
+  }
+  .game-pick-btn strong { display: block; font-size: 1.1rem; margin-bottom: 4px; color: var(--king-glow); }
+  .game-pick-btn span { font-family: 'Inter', sans-serif; font-size: 0.82rem; color: var(--text-dim); font-weight: 400; letter-spacing: 0; }
+  .game-pick-btn:hover { border-color: var(--king-glow); }
 
   .mode-group { margin-bottom: 18px; text-align: left; }
   .mode-label {
@@ -176,6 +199,16 @@
     padding: 12px;
   }
   .start-btn:hover { background: var(--king-glow); border-color: var(--king-glow); }
+
+  .back-link {
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .back-link:hover { color: var(--text); }
 
   .room-code {
     margin-top: 12px;
@@ -229,13 +262,13 @@
 </head>
 <body>
 
-  <h1>Kings &amp; Pawns</h1>
-  <div class="subtitle" id="subtitle">Choose your side to begin.</div>
+  <h1 id="gameTitle">Board Games</h1>
+  <div class="subtitle" id="subtitle">Choose a game to begin.</div>
 
   <div class="status-bar">
-    <div class="status-item"><span class="status-dot king"></span><span id="turnLabel">King's Turn</span></div>
+    <div class="status-item"><span class="status-dot a"></span><span id="turnLabel">Turn</span></div>
     <div class="status-divider"></div>
-    <div class="status-item"><span class="status-dot pawn"></span><span id="pawnCount">14 pawns</span></div>
+    <div class="status-item"><span class="status-dot b"></span><span id="pieceCount">&nbsp;</span></div>
   </div>
 
   <div class="board-wrap">
@@ -247,23 +280,37 @@
     <button id="changeModeBtn">Change Mode</button>
   </div>
 
-  <div class="rules-note">
-    <b>Kings</b> move one step along any line and capture by landing so that enemy pawns flank them
-    on both sides of any straight line. <b>Pawns</b> move one step but cannot capture &mdash;
-    they win by trapping both Kings with no legal move.
+  <div class="rules-note" id="rulesNote"></div>
+
+  <!-- Top-level game chooser -->
+  <div class="overlay show" id="gameChoiceScreen">
+    <div class="overlay-card">
+      <h2>Choose a Game</h2>
+      <p>Both are played on the same cross-line board.</p>
+      <div class="game-pick-row">
+        <button class="game-pick-btn" data-game="kap">
+          <strong>Kings &amp; Pawns</strong>
+          <span>2 Kings hunt 14 Pawns. Kings capture by sandwiching pawns; Pawns win by trapping both Kings.</span>
+        </button>
+        <button class="game-pick-btn" data-game="checkers">
+          <strong>Checkers</strong>
+          <span>Classic jump-capture checkers, adapted to this board's diagonal + straight lines. Forced captures, multi-jumps, promotion.</span>
+        </button>
+      </div>
+    </div>
   </div>
 
-  <!-- Start / mode-select screen -->
-  <div class="overlay show" id="startScreen">
+  <!-- Mode-select screen (shared, relabeled per game) -->
+  <div class="overlay" id="startScreen">
     <div class="overlay-card">
-      <h2>Kings &amp; Pawns</h2>
+      <h2 id="modeScreenTitle">Kings &amp; Pawns</h2>
       <p>Choose your side and opponent</p>
 
       <div class="mode-group">
         <div class="mode-label">Play as</div>
         <div class="mode-buttons" id="sideButtons">
-          <button data-value="king" class="mode-btn active">King</button>
-          <button data-value="pawn" class="mode-btn">Pawn</button>
+          <button data-value="a" class="mode-btn active">King</button>
+          <button data-value="b" class="mode-btn">Pawn</button>
         </div>
       </div>
 
@@ -296,6 +343,7 @@
       </div>
 
       <button id="startBtn" class="start-btn">Start Game</button>
+      <div class="back-link" id="backToGameChoice">&larr; Choose a different game</div>
     </div>
   </div>
 
@@ -313,7 +361,7 @@
 (function () {
   "use strict";
 
-  // ---------- Board model ----------
+  // ================= Shared board geometry (both games) =================
   const SIZE = 5;
   const PAD = 45;
   const SPACING = 90;
@@ -323,29 +371,18 @@
     return (p.x % 2 === 0 && p.y % 2 === 0) || (p.x % 2 === 1 && p.y % 2 === 1);
   }
   function samePoint(a, b) { return a.x === b.x && a.y === b.y; }
-  const other = side => (side === "king" ? "pawn" : "king");
-
-  function createBoard() {
-    const b = [];
-    for (let x = 0; x < SIZE; x++) {
-      b.push([]);
-      for (let y = 0; y < SIZE; y++) b[x].push(null);
-    }
-    b[0][0] = { type: "king", owner: "king" };
-    b[4][4] = { type: "king", owner: "king" };
-    for (let x = 0; x < SIZE; x++) {
-      for (let y = 0; y < SIZE; y++) {
-        const isKingCorner = (x === 0 && y === 0) || (x === 4 && y === 4);
-        const isBorder = x === 0 || x === SIZE - 1 || y === 0 || y === SIZE - 1;
-        if (isBorder && !isKingCorner) b[x][y] = { type: "pawn", owner: "pawn" };
-      }
-    }
-    return b;
-  }
-
+  function coord(u) { return PAD + u * SPACING; }
   function cloneBoard(b) { return b.map(col => col.map(cell => (cell ? { ...cell } : null))); }
   function getPiece(b, p) { return b[p.x][p.y]; }
   function setPiece(b, p, v) { b[p.x][p.y] = v; }
+  function allPoints() {
+    const pts = [];
+    for (let x = 0; x < SIZE; x++) for (let y = 0; y < SIZE; y++) pts.push({x,y});
+    return pts;
+  }
+  function getPiecesOf(b, owner) {
+    return allPoints().filter(p => { const pc = getPiece(b,p); return pc && pc.owner === owner; });
+  }
 
   function getOrthogonalNeighbors(p) {
     const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
@@ -358,13 +395,32 @@
   }
   function getAllNeighbors(p) { return getOrthogonalNeighbors(p).concat(getDiagonalNeighbors(p)); }
 
-  function getLegalMoves(b, from) {
+  // ================= KINGS & PAWNS MODULE =================
+  const KAP = {};
+  KAP.other = side => (side === "king" ? "pawn" : "king");
+
+  KAP.createBoard = function () {
+    const b = [];
+    for (let x = 0; x < SIZE; x++) { b.push([]); for (let y = 0; y < SIZE; y++) b[x].push(null); }
+    b[0][0] = { type: "king", owner: "king" };
+    b[4][4] = { type: "king", owner: "king" };
+    for (let x = 0; x < SIZE; x++) {
+      for (let y = 0; y < SIZE; y++) {
+        const isKingCorner = (x === 0 && y === 0) || (x === 4 && y === 4);
+        const isBorder = x === 0 || x === SIZE - 1 || y === 0 || y === SIZE - 1;
+        if (isBorder && !isKingCorner) b[x][y] = { type: "pawn", owner: "pawn" };
+      }
+    }
+    return b;
+  };
+
+  KAP.getLegalMoves = function (b, from) {
     const piece = getPiece(b, from);
     if (!piece) return [];
     return getAllNeighbors(from).filter(n => !getPiece(b, n));
-  }
+  };
 
-  function getSandwichCaptures(b, p) {
+  KAP.getSandwichCaptures = function (b, p) {
     const result = [];
     const axisPairs = [ [{x:-1,y:0},{x:1,y:0}], [{x:0,y:-1},{x:0,y:1}] ];
     if (isDiagCapable(p)) {
@@ -379,44 +435,31 @@
       if (pa && pa.type === "pawn" && pc && pc.type === "pawn") { result.push(a); result.push(c); }
     }
     return result;
-  }
+  };
 
-  function tryMove(b, from, to) {
+  KAP.tryMove = function (b, from, to) {
     const piece = getPiece(b, from);
     if (!piece) return null;
-    const legal = getLegalMoves(b, from);
+    const legal = KAP.getLegalMoves(b, from);
     if (!legal.some(m => samePoint(m, to))) return null;
-
     setPiece(b, to, piece);
     setPiece(b, from, null);
-
     let captured = [];
     if (piece.type === "king") {
-      captured = getSandwichCaptures(b, to);
+      captured = KAP.getSandwichCaptures(b, to);
       for (const c of captured) setPiece(b, c, null);
     }
     return { captured };
-  }
+  };
 
-  function allPoints() {
-    const pts = [];
-    for (let x = 0; x < SIZE; x++) for (let y = 0; y < SIZE; y++) pts.push({x,y});
-    return pts;
-  }
-  function getPiecesOf(b, owner) {
-    return allPoints().filter(p => { const pc = getPiece(b,p); return pc && pc.owner === owner; });
-  }
-  function countPawns(b) { return getPiecesOf(b, "pawn").length; }
-  function anyLegalMoveFor(b, owner) {
-    return getPiecesOf(b, owner).some(p => getLegalMoves(b, p).length > 0);
-  }
-  function checkWinner(b) {
-    if (countPawns(b) === 0) return "king";
-    if (!anyLegalMoveFor(b, "king")) return "pawn";
+  KAP.countPawns = function (b) { return getPiecesOf(b, "pawn").length; };
+  KAP.anyLegalMoveFor = function (b, owner) { return getPiecesOf(b, owner).some(p => KAP.getLegalMoves(b, p).length > 0); };
+  KAP.checkWinner = function (b) {
+    if (KAP.countPawns(b) === 0) return "king";
+    if (!KAP.anyLegalMoveFor(b, "king")) return "pawn";
     return null;
-  }
+  };
 
-  // ---------- AI (shared heuristics for both sides) ----------
   function chebyshev(a, b) { return Math.max(Math.abs(a.x-b.x), Math.abs(a.y-b.y)); }
   function distanceToNearestOwner(b, owner, point) {
     let best = Infinity;
@@ -424,53 +467,47 @@
     return best;
   }
 
-  function evaluatePawnMove(board, from, to) {
+  KAP.evaluatePawnMove = function (board, from, to) {
     const after = cloneBoard(board);
-    tryMove(after, from, to);
+    KAP.tryMove(after, from, to);
     let score = 0;
-
     let worstCase = 0;
     for (const king of getPiecesOf(after, "king")) {
-      for (const dest of getLegalMoves(after, king)) {
+      for (const dest of KAP.getLegalMoves(after, king)) {
         const probe = cloneBoard(after);
-        const res = tryMove(probe, king, dest);
+        const res = KAP.tryMove(probe, king, dest);
         worstCase = Math.max(worstCase, res.captured.length);
       }
     }
     score -= worstCase * 50;
-
     let kingMobility = 0;
-    for (const king of getPiecesOf(after, "king")) kingMobility += getLegalMoves(after, king).length;
+    for (const king of getPiecesOf(after, "king")) kingMobility += KAP.getLegalMoves(after, king).length;
     score -= kingMobility * 2;
-
     score += (distanceToNearestOwner(board, "king", from) - distanceToNearestOwner(after, "king", to)) * 3;
     if (kingMobility === 0) score += 10000;
     return score;
-  }
+  };
 
-  function evaluateKingMove(board, from, to) {
+  KAP.evaluateKingMove = function (board, from, to) {
     const after = cloneBoard(board);
-    const result = tryMove(after, from, to);
+    const result = KAP.tryMove(after, from, to);
     let score = result.captured.length * 100;
-
-    const winner = checkWinner(after);
-    if (winner === "pawn") score -= 100000; // never self-trap
-    if (winner === "king") score += 100000; // finishing move
-
+    const winner = KAP.checkWinner(after);
+    if (winner === "pawn") score -= 100000;
+    if (winner === "king") score += 100000;
     let kingMobility = 0;
-    for (const king of getPiecesOf(after, "king")) kingMobility += getLegalMoves(after, king).length;
+    for (const king of getPiecesOf(after, "king")) kingMobility += KAP.getLegalMoves(after, king).length;
     score += kingMobility * 2;
-
     score += (distanceToNearestOwner(board, "pawn", from) - distanceToNearestOwner(after, "pawn", to)) * 3;
     return score;
-  }
+  };
 
-  function chooseAIMove(board, side) {
+  KAP.chooseAIMove = function (board, side) {
     const pieces = getPiecesOf(board, side);
-    const evalFn = side === "pawn" ? evaluatePawnMove : evaluateKingMove;
+    const evalFn = side === "pawn" ? KAP.evaluatePawnMove : KAP.evaluateKingMove;
     const candidates = [];
     for (const piece of pieces) {
-      for (const dest of getLegalMoves(board, piece)) {
+      for (const dest of KAP.getLegalMoves(board, piece)) {
         candidates.push({ from: piece, to: dest, score: evalFn(board, piece, dest) });
       }
     }
@@ -479,44 +516,248 @@
     const best = candidates[0].score;
     const top = candidates.filter(c => c.score >= best - 0.01);
     return top[Math.floor(Math.random() * top.length)];
+  };
+
+  KAP.pieceShape = function (piece, cx, cy) {
+    return piece.type === "king" ? shapeKing(cx, cy) : shapePawn(cx, cy);
+  };
+
+  // ================= CHECKERS MODULE =================
+  const CK = {};
+  CK.other = side => (side === "white" ? "black" : "white");
+  const CK_ALL_DIRS = [
+    {dx:-1,dy:-1},{dx:0,dy:-1},{dx:1,dy:-1},
+    {dx:-1,dy:0},{dx:1,dy:0},
+    {dx:-1,dy:1},{dx:0,dy:1},{dx:1,dy:1}
+  ];
+
+  CK.createBoard = function () {
+    const b = [];
+    for (let x = 0; x < SIZE; x++) { b.push([]); for (let y = 0; y < SIZE; y++) b[x].push(null); }
+    for (let x = 0; x < SIZE; x++) {
+      b[x][0] = { type: "man", owner: "white" };
+      b[x][1] = { type: "man", owner: "white" };
+      b[x][3] = { type: "man", owner: "black" };
+      b[x][4] = { type: "man", owner: "black" };
+    }
+    return b;
+  };
+
+  function ckForwardSign(owner) { return owner === "white" ? 1 : -1; }
+  function ckDirsFor(piece) {
+    return CK_ALL_DIRS; // both men and kings move/capture in any direction this point connects to
+  }
+  function ckCanStep(a, dir) {
+    const b = {x:a.x+dir.dx, y:a.y+dir.dy};
+    if (!inBounds(b)) return false;
+    if (dir.dx !== 0 && dir.dy !== 0) return isDiagCapable(a);
+    return true;
   }
 
-  // ---------- Game state ----------
-  let board = createBoard();
+  CK.getPlainMoves = function (board, point) {
+    const piece = getPiece(board, point);
+    if (!piece) return [];
+    const moves = [];
+    for (const dir of ckDirsFor(piece)) {
+      if (!ckCanStep(point, dir)) continue;
+      const dest = {x:point.x+dir.dx, y:point.y+dir.dy};
+      if (!getPiece(board, dest)) moves.push(dest);
+    }
+    return moves;
+  };
+
+  CK.getCaptures = function (board, point) {
+    const piece = getPiece(board, point);
+    if (!piece) return [];
+    const caps = [];
+    for (const dir of ckDirsFor(piece)) {
+      if (!ckCanStep(point, dir)) continue;
+      const mid = {x:point.x+dir.dx, y:point.y+dir.dy};
+      const midPiece = getPiece(board, mid);
+      if (!midPiece || midPiece.owner === piece.owner) continue;
+      if (!ckCanStep(mid, dir)) continue;
+      const landing = {x:mid.x+dir.dx, y:mid.y+dir.dy};
+      if (getPiece(board, landing)) continue;
+      caps.push({ mid, landing });
+    }
+    return caps;
+  };
+
+  CK.anyCaptureForOwner = function (board, owner) {
+    return getPiecesOf(board, owner).some(p => CK.getCaptures(board, p).length > 0);
+  };
+
+  CK.promoteIfNeeded = function (board, point) {
+    const piece = getPiece(board, point);
+    if (!piece || piece.type === "king") return false;
+    const farRow = piece.owner === "white" ? SIZE - 1 : 0;
+    if (point.y === farRow) { setPiece(board, point, { type: "king", owner: piece.owner }); return true; }
+    return false;
+  };
+
+  CK.applyPlainMove = function (board, from, to) {
+    const piece = getPiece(board, from);
+    setPiece(board, to, piece);
+    setPiece(board, from, null);
+    const promoted = CK.promoteIfNeeded(board, to);
+    return { captured: [], promoted, landedAt: to };
+  };
+
+  CK.applyCapture = function (board, from, capture) {
+    const piece = getPiece(board, from);
+    setPiece(board, capture.landing, piece);
+    setPiece(board, from, null);
+    setPiece(board, capture.mid, null);
+    const promoted = CK.promoteIfNeeded(board, capture.landing);
+    return { captured: [capture.mid], promoted, landedAt: capture.landing };
+  };
+
+  CK.checkWinner = function (board, turnPlayer) {
+    const pieces = getPiecesOf(board, turnPlayer);
+    if (pieces.length === 0) return CK.other(turnPlayer);
+    const hasMove = pieces.some(p => CK.getPlainMoves(board,p).length>0 || CK.getCaptures(board,p).length>0);
+    if (!hasMove) return CK.other(turnPlayer);
+    return null;
+  };
+
+  // Recursively enumerate every complete capture chain starting from a point.
+  CK.enumerateChains = function (board, point) {
+    const results = [];
+    function dfs(curBoard, curPoint, path) {
+      const caps = CK.getCaptures(curBoard, curPoint);
+      if (caps.length === 0) { results.push(path); return; }
+      for (const cap of caps) {
+        const nb = cloneBoard(curBoard);
+        CK.applyCapture(nb, curPoint, cap);
+        dfs(nb, cap.landing, path.concat([cap]));
+      }
+    }
+    dfs(board, point, []);
+    return results.filter(r => r.length > 0);
+  };
+
+  CK.chooseAIMove = function (board, side) {
+    const pieces = getPiecesOf(board, side);
+    const candidates = [];
+
+    // Every possible capture chain, scored by pieces captured + resulting safety.
+    for (const p of pieces) {
+      for (const chain of CK.enumerateChains(board, p)) {
+        candidates.push({ kind: "capture", from: p, chain, score: CK.evaluateCaptureChain(board, p, chain, side) });
+      }
+    }
+    // Every possible plain move.
+    for (const p of pieces) {
+      for (const dest of CK.getPlainMoves(board, p)) {
+        candidates.push({ kind: "plain", from: p, to: dest, score: CK.evaluatePlainMove(board, p, dest, side) });
+      }
+    }
+
+    if (candidates.length === 0) return null;
+    candidates.sort((a,b) => b.score - a.score);
+    const best = candidates[0].score;
+    const top = candidates.filter(c => c.score >= best - 0.01);
+    return top[Math.floor(Math.random() * top.length)];
+  };
+
+  CK.evaluateCaptureChain = function (board, from, chain, side) {
+    const after = cloneBoard(board);
+    let cur = from;
+    for (const step of chain) { CK.applyCapture(after, cur, step); cur = step.landing; }
+    let score = chain.length * 60; // capturing is usually strong, but no longer mandatory
+    const opp = CK.other(side);
+    let exposed = false;
+    for (const op of getPiecesOf(after, opp)) {
+      if (CK.getCaptures(after, op).some(c => samePoint(c.mid, cur))) { exposed = true; break; }
+    }
+    if (exposed) score -= 25;
+    return score;
+  };
+
+  CK.evaluatePlainMove = function (board, from, to, side) {
+    const after = cloneBoard(board);
+    const result = CK.applyPlainMove(after, from, to);
+    let score = 0;
+    if (result.promoted) score += 50;
+    // Mild preference to advance toward the far row (no longer required, just a nudge).
+    const fs = ckForwardSign(side);
+    score += (to.y - from.y) * fs * 4;
+    // Avoid leaving this piece capturable next turn.
+    const opp = CK.other(side);
+    let exposed = false;
+    for (const op of getPiecesOf(after, opp)) {
+      if (CK.getCaptures(after, op).some(c => samePoint(c.mid, to))) { exposed = true; break; }
+    }
+    if (exposed) score -= 30;
+    // Mild pull toward board center for better mobility.
+    score -= (Math.abs(to.x - 2) + Math.abs(to.y - 2)) * 1;
+    return score;
+  };
+
+  CK.pieceShape = function (piece, cx, cy) {
+    return shapeCheckers(piece, cx, cy);
+  };
+
+  // ================= Active game dispatch =================
+  const GAMES = {
+    kap: {
+      key: "kap", title: "Kings & Pawns",
+      sideA: { key: "king", label: "King" }, sideB: { key: "pawn", label: "Pawn" },
+      firstTurn: "king",
+      rulesNote: "<b>Kings</b> move one step along any line and capture by landing so that enemy pawns flank them on both sides of any straight line. <b>Pawns</b> move one step but cannot capture &mdash; they win by trapping both Kings with no legal move.",
+      colors: { a: "var(--king)", aGlow: "var(--king-glow)", b: "var(--pawn)", bGlow: "var(--pawn-glow)" }
+    },
+    checkers: {
+      key: "checkers", title: "Checkers",
+      sideA: { key: "white", label: "White" }, sideB: { key: "black", label: "Black" },
+      firstTurn: "white",
+      rulesNote: "Pieces move one step forward (diagonal or straight). Capture by jumping over an adjacent enemy into the empty point beyond. Captures are <b>mandatory</b> and chain into multi-jumps. Reaching the far row promotes a piece to <b>King</b>, which can move and capture in any direction.",
+      colors: { a: "var(--white-pc)", aGlow: "var(--white-glow)", b: "var(--black-pc)", bGlow: "var(--black-glow)" }
+    }
+  };
+
+  let activeGame = "kap";
+
+  // ================= Game state =================
+  let board = KAP.createBoard();
   let currentTurn = "king";
   let selected = null;
   let isGameOver = false;
   let humanSide = "king";
   let mode = "ai"; // "ai" | "local" | "online"
+  let ckPendingFrom = null; // checkers: piece forced to continue a multi-jump
 
-  // ---------- Online (WebRTC via PeerJS) state ----------
-  let peer = null;
-  let conn = null;
-  let isHost = false;
+  let peer = null, conn = null, isHost = false;
   const ROOM_PREFIX = "kap-";
+
+  function G() { return GAMES[activeGame]; }
+  function otherSide(side) { return activeGame === "kap" ? KAP.other(side) : CK.other(side); }
 
   function isHumanTurn() {
     if (mode === "local") return true;
     if (mode === "online") return conn && conn.open && currentTurn === humanSide;
-    return currentTurn === humanSide; // ai
+    return currentTurn === humanSide;
   }
 
-  // ---------- Rendering ----------
+  // ================= Rendering =================
   const svg = document.getElementById("board");
   const NS = "http://www.w3.org/2000/svg";
   const turnLabel = document.getElementById("turnLabel");
-  const pawnCountLabel = document.getElementById("pawnCount");
+  const pieceCountLabel = document.getElementById("pieceCount");
   const subtitle = document.getElementById("subtitle");
+  const gameTitle = document.getElementById("gameTitle");
+  const rulesNote = document.getElementById("rulesNote");
   const overlay = document.getElementById("overlay");
   const overlayTitle = document.getElementById("overlayTitle");
   const overlaySubtitle = document.getElementById("overlaySubtitle");
   const startScreen = document.getElementById("startScreen");
+  const modeScreenTitle = document.getElementById("modeScreenTitle");
+  const gameChoiceScreen = document.getElementById("gameChoiceScreen");
   const onlinePanel = document.getElementById("onlinePanel");
   const onlineStatus = document.getElementById("onlineStatus");
   const startBtn = document.getElementById("startBtn");
   const roomCodeDisplay = document.getElementById("roomCodeDisplay");
-
-  function coord(u) { return PAD + u * SPACING; }
+  const sideButtons = document.getElementById("sideButtons");
 
   const lineLayer = document.createElementNS(NS, "g");
   const dotLayer = document.createElementNS(NS, "g");
@@ -525,7 +766,7 @@
   svg.appendChild(lineLayer);
   svg.appendChild(dotLayer);
   svg.appendChild(pieceLayer);
-  svg.appendChild(hitLayer); // always last => always on top => always receives clicks
+  svg.appendChild(hitLayer);
 
   function buildStaticLines() {
     const lines = [];
@@ -557,7 +798,7 @@
     }
   }
 
-  function kingShape(cx, cy) {
+  function shapeKing(cx, cy) {
     const g = document.createElementNS(NS, "g");
     g.setAttribute("class", "piece-group");
     const w = 17, h = 14, bandH = 6;
@@ -571,7 +812,7 @@
     return g;
   }
 
-  function pawnShape(cx, cy) {
+  function shapePawn(cx, cy) {
     const g = document.createElementNS(NS, "g");
     g.setAttribute("class", "piece-group");
     const head = document.createElementNS(NS, "circle");
@@ -582,6 +823,22 @@
     base.setAttribute("d", `M ${cx-12},${cy+13} Q ${cx},${cy+3} ${cx+12},${cy+13} Z`);
     base.setAttribute("class", "pawn-shape");
     g.appendChild(base);
+    return g;
+  }
+
+  function shapeCheckers(piece, cx, cy) {
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "piece-group");
+    const disc = document.createElementNS(NS, "circle");
+    disc.setAttribute("cx", cx); disc.setAttribute("cy", cy); disc.setAttribute("r", 15);
+    disc.setAttribute("class", piece.owner === "white" ? "ck-white" : "ck-black");
+    g.appendChild(disc);
+    if (piece.type === "king") {
+      const ring = document.createElementNS(NS, "circle");
+      ring.setAttribute("cx", cx); ring.setAttribute("cy", cy); ring.setAttribute("r", 8);
+      ring.setAttribute("class", "ck-king-mark " + (piece.owner === "white" ? "on-white" : "on-black"));
+      g.appendChild(ring);
+    }
     return g;
   }
 
@@ -617,81 +874,114 @@
       const piece = getPiece(board, p);
       if (!piece) continue;
       const cx = coord(p.x), cy = coord(p.y);
-      const group = piece.type === "king" ? kingShape(cx, cy) : pawnShape(cx, cy);
+      const group = activeGame === "kap" ? KAP.pieceShape(piece, cx, cy) : CK.pieceShape(piece, cx, cy);
       pieceLayer.appendChild(group);
       entry.pieceGroup = group;
     }
   }
 
+  function currentLegalPlain(point) {
+    return activeGame === "kap" ? KAP.getLegalMoves(board, point) : CK.getPlainMoves(board, point);
+  }
+  function currentLegalCaptures(point) {
+    return activeGame === "kap" ? [] : CK.getCaptures(board, point);
+  }
+
   function refreshHighlights() {
-    const legalMoves = selected ? getLegalMoves(board, selected) : [];
+    let plainDests = [], captureDests = [];
+    if (selected) {
+      plainDests = currentLegalPlain(selected);
+      captureDests = currentLegalCaptures(selected).map(c => c.landing);
+    }
     const humanTurn = isHumanTurn();
+
     for (const p of allPoints()) {
       const entry = pointEls[p.x+","+p.y];
       const isSelected = selected && samePoint(selected, p);
-      const isLegal = legalMoves.some(m => samePoint(m, p));
+      const isCapture = captureDests.some(m => samePoint(m, p));
+      const isPlain = !isCapture && plainDests.some(m => samePoint(m, p));
       entry.dot.classList.toggle("selected", !!isSelected);
-      entry.dot.classList.toggle("legal", !!isLegal && !isSelected);
-      if (!isSelected && !isLegal) entry.dot.setAttribute("fill", "var(--point)");
+      entry.dot.classList.toggle("capture", !!isCapture);
+      entry.dot.classList.toggle("legal", !!isPlain);
+      if (!isSelected && !isCapture && !isPlain) entry.dot.setAttribute("fill", "var(--point)");
+
       const piece = getPiece(board, p);
-      const clickable = !isGameOver && humanTurn &&
-        ((piece && piece.owner === currentTurn) || isLegal);
-      entry.hit.classList.toggle("clickable", clickable);
+      let clickable = !isGameOver && humanTurn;
+      if (clickable) {
+        if (ckPendingFrom) {
+          clickable = samePoint(p, ckPendingFrom) || isCapture;
+        } else if (piece && piece.owner === currentTurn) {
+          clickable = true;
+        } else {
+          clickable = isPlain || isCapture;
+        }
+      }
+      entry.hit.classList.toggle("clickable", !!clickable);
     }
   }
 
   function updateStatus() {
-    turnLabel.textContent = isGameOver ? "Game Over" : (currentTurn === "king" ? "King's Turn" : "Pawn's Turn");
-    turnLabel.classList.toggle("active-king", currentTurn === "king" && !isGameOver);
-    turnLabel.classList.toggle("active-pawn", currentTurn === "pawn" && !isGameOver);
-    pawnCountLabel.textContent = countPawns(board) + " pawns";
+    const g = G();
+    const aLabel = g.sideA.label, bLabel = g.sideB.label;
+    const turnIsA = currentTurn === g.sideA.key;
+    turnLabel.textContent = isGameOver ? "Game Over" : ((turnIsA ? aLabel : bLabel) + "'s Turn");
+    turnLabel.classList.toggle("active-a", turnIsA && !isGameOver);
+    turnLabel.classList.toggle("active-b", !turnIsA && !isGameOver);
+
+    if (activeGame === "kap") {
+      pieceCountLabel.textContent = KAP.countPawns(board) + " pawns";
+    } else {
+      const w = getPiecesOf(board, "white").length, bl = getPiecesOf(board, "black").length;
+      pieceCountLabel.textContent = "White " + w + " \u2013 Black " + bl;
+    }
+  }
+
+  function applyThemeColors() {
+    const g = G();
+    document.documentElement.style.setProperty("--dot-a", g.colors.a);
+    document.documentElement.style.setProperty("--dot-a-glow", g.colors.aGlow);
+    document.documentElement.style.setProperty("--dot-b", g.colors.b);
+    document.documentElement.style.setProperty("--dot-b-glow", g.colors.bGlow);
+    gameTitle.textContent = g.title;
+    rulesNote.innerHTML = g.rulesNote;
   }
 
   function updateSubtitle() {
+    const g = G();
     if (mode === "local") { subtitle.textContent = "Local 2-player \u2014 pass the device each turn."; return; }
     if (mode === "online") {
-      subtitle.textContent = humanSide === "king"
-        ? "Online match \u2014 you command the Kings."
-        : "Online match \u2014 you command the Pawns.";
+      subtitle.textContent = "Online match \u2014 you are " + (humanSide === g.sideA.key ? g.sideA.label : g.sideB.label) + ".";
       return;
     }
-    subtitle.textContent = humanSide === "king"
-      ? "You command the Kings. The Pawns are played by the machine."
-      : "You command the Pawns. The Kings are played by the machine.";
+    subtitle.textContent = "You are " + (humanSide === g.sideA.key ? g.sideA.label : g.sideB.label) + ". The machine plays the other side.";
   }
 
   function showGameOver(winner) {
+    const g = G();
     overlay.classList.add("show");
-    if (winner === "king") {
-      overlayTitle.textContent = "Kings Win!";
-      overlayTitle.className = "king-win";
-      overlaySubtitle.textContent = "All pawns have been captured.";
-    } else {
-      overlayTitle.textContent = "Pawns Win!";
-      overlayTitle.className = "pawn-win";
-      overlaySubtitle.textContent = "Both Kings are trapped with no legal move.";
-    }
+    const isA = winner === g.sideA.key;
+    overlayTitle.textContent = (isA ? g.sideA.label : g.sideB.label) + " Wins!";
+    overlayTitle.className = isA ? "a-win" : "b-win";
+    overlaySubtitle.textContent = activeGame === "kap"
+      ? (winner === "king" ? "All pawns have been captured." : "Both Kings are trapped with no legal move.")
+      : "The opponent has no pieces or moves left.";
   }
 
-  // ---------- Online networking (PeerJS / WebRTC) ----------
+  // ================= Online networking =================
   function setOnlineStatus(text, cls) {
     onlineStatus.textContent = text || "";
     onlineStatus.className = "online-status" + (cls ? " " + cls : "");
   }
-
   function randomRoomCode(len) {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I ambiguity
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let code = "";
     for (let i = 0; i < len; i++) code += chars[Math.floor(Math.random() * chars.length)];
     return code;
   }
-
   function teardownConnection() {
     if (peer) { try { peer.destroy(); } catch (e) {} }
-    peer = null;
-    conn = null;
+    peer = null; conn = null;
   }
-
   function createRoom() {
     teardownConnection();
     isHost = true;
@@ -707,7 +997,6 @@
     peer.on("connection", incoming => { conn = incoming; setupConnection(); });
     peer.on("error", err => setOnlineStatus("Connection error (" + err.type + "). Try creating a new room.", "error"));
   }
-
   function joinRoom(codeRaw) {
     const code = (codeRaw || "").trim().toLowerCase();
     if (!code) { setOnlineStatus("Enter a room code first.", "error"); return; }
@@ -721,81 +1010,155 @@
     });
     peer.on("error", err => setOnlineStatus("Connection error (" + err.type + "). Check the code and try again.", "error"));
   }
-
   function setupConnection() {
     conn.on("open", () => {
       setOnlineStatus("Connected!", "success");
       if (isHost) {
-        conn.send({ type: "assignSide", side: other(humanSide) });
+        conn.send({ type: "assignSide", game: activeGame, side: otherSide(humanSide) });
         beginOnlineGame();
       }
-      // Guest starts once it receives "assignSide" below.
     });
     conn.on("data", onData);
     conn.on("close", () => setOnlineStatus("Your friend disconnected.", "error"));
     conn.on("error", () => setOnlineStatus("Connection error.", "error"));
   }
-
   function onData(msg) {
     if (!msg || !msg.type) return;
     if (msg.type === "assignSide") {
+      activeGame = msg.game;
       humanSide = msg.side;
       beginOnlineGame();
-    } else if (msg.type === "move") {
-      tryMove(board, msg.from, msg.to);
-      afterMove({ broadcast: false });
+    } else if (msg.type === "kapMove") {
+      KAP.tryMove(board, msg.from, msg.to);
+      afterKapMove({ broadcast: false });
+    } else if (msg.type === "ckPlain") {
+      CK.applyPlainMove(board, msg.from, msg.to);
+      finishCheckersTurn({ broadcast: false });
+    } else if (msg.type === "ckCapture") {
+      let cur = msg.from;
+      for (const step of msg.steps) { CK.applyCapture(board, cur, step); cur = step.landing; }
+      finishCheckersTurn({ broadcast: false });
     } else if (msg.type === "restart") {
       resetBoardLocal();
     }
   }
-
   function beginOnlineGame() {
     mode = "online";
     startScreen.classList.remove("show");
+    applyThemeColors();
     updateSubtitle();
     resetBoardLocal();
   }
 
-  // ---------- Interaction ----------
+  // ================= Interaction: dispatch by active game =================
   function onPointClicked(p) {
     if (isGameOver || !isHumanTurn()) return;
+    if (activeGame === "kap") onKapPointClicked(p);
+    else onCheckersPointClicked(p);
+  }
 
+  // ---- Kings & Pawns interaction ----
+  function onKapPointClicked(p) {
     if (selected) {
       const from = selected;
-      const result = tryMove(board, from, p);
-      if (result) { selected = null; afterMove({ broadcast: true, from, to: p }); return; }
+      const result = KAP.tryMove(board, from, p);
+      if (result) { selected = null; afterKapMove({ broadcast: true, from, to: p }); return; }
       const piece = getPiece(board, p);
       if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); return; }
       selected = null; refreshHighlights();
       return;
     }
-
     const piece = getPiece(board, p);
     if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); }
   }
 
-  function afterMove(opts) {
+  function afterKapMove(opts) {
     opts = opts || {};
     syncPieces();
-
     if (mode === "online" && opts.broadcast && conn && conn.open) {
-      conn.send({ type: "move", from: opts.from, to: opts.to });
+      conn.send({ type: "kapMove", from: opts.from, to: opts.to });
     }
-
-    const winner = checkWinner(board);
+    const winner = KAP.checkWinner(board);
     if (winner) {
-      isGameOver = true;
-      updateStatus();
-      refreshHighlights();
+      isGameOver = true; updateStatus(); refreshHighlights();
       setTimeout(() => showGameOver(winner), 300);
       return;
     }
-    currentTurn = other(currentTurn);
-    updateStatus();
-    refreshHighlights();
+    currentTurn = KAP.other(currentTurn);
+    updateStatus(); refreshHighlights();
     if (mode === "ai") maybeTriggerAI();
   }
 
+  // ---- Checkers interaction ----
+  function onCheckersPointClicked(p) {
+    if (ckPendingFrom) {
+      const caps = CK.getCaptures(board, ckPendingFrom);
+      const match = caps.find(c => samePoint(c.landing, p));
+      if (match) performCheckersCapture(ckPendingFrom, match, [match]);
+      return;
+    }
+
+    if (selected) {
+      const caps = CK.getCaptures(board, selected);
+      const capMatch = caps.find(c => samePoint(c.landing, p));
+      if (capMatch) { performCheckersCapture(selected, capMatch, [capMatch]); return; }
+
+      const plains = CK.getPlainMoves(board, selected);
+      if (plains.some(m => samePoint(m, p))) { performCheckersPlain(selected, p); return; }
+
+      const clicked = getPiece(board, p);
+      if (clicked && clicked.owner === currentTurn) { selected = p; refreshHighlights(); return; }
+      selected = null; refreshHighlights();
+      return;
+    }
+
+    const piece = getPiece(board, p);
+    if (piece && piece.owner === currentTurn) {
+      selected = p; refreshHighlights();
+    }
+  }
+
+  function performCheckersPlain(from, to) {
+    CK.applyPlainMove(board, from, to);
+    selected = null;
+    finishCheckersTurn({ broadcast: true, kind: "plain", from, to });
+  }
+
+  function performCheckersCapture(from, capture, stepsSoFar) {
+    const result = CK.applyCapture(board, from, capture);
+    const landedAt = result.landedAt;
+    const canContinue = CK.getCaptures(board, landedAt).length > 0;
+    syncPieces();
+    if (canContinue) {
+      ckPendingFrom = landedAt;
+      selected = landedAt;
+      updateStatus(); refreshHighlights();
+      return;
+    }
+    ckPendingFrom = null;
+    selected = null;
+    finishCheckersTurn({ broadcast: true, kind: "capture", from, steps: stepsSoFar });
+  }
+
+  function finishCheckersTurn(opts) {
+    opts = opts || {};
+    syncPieces();
+    if (mode === "online" && opts.broadcast && conn && conn.open) {
+      if (opts.kind === "plain") conn.send({ type: "ckPlain", from: opts.from, to: opts.to });
+      else if (opts.kind === "capture") conn.send({ type: "ckCapture", from: opts.from, steps: opts.steps });
+    }
+    currentTurn = CK.other(currentTurn);
+    const winner = CK.checkWinner(board, currentTurn);
+    if (winner) {
+      isGameOver = true; updateStatus(); refreshHighlights();
+      setTimeout(() => showGameOver(winner), 300);
+      return;
+    }
+    updateStatus(); refreshHighlights();
+    if (mode === "ai") maybeTriggerAI();
+  }
+
+  // ================= AI dispatch =================
   function maybeTriggerAI() {
     if (isGameOver) return;
     if (mode === "ai" && currentTurn !== humanSide) setTimeout(() => aiMove(currentTurn), 550);
@@ -803,17 +1166,32 @@
 
   function aiMove(side) {
     if (isGameOver || currentTurn !== side) return;
-    const move = chooseAIMove(board, side);
-    if (!move) return;
-    tryMove(board, move.from, move.to);
-    afterMove({ broadcast: false });
+    if (activeGame === "kap") {
+      const move = KAP.chooseAIMove(board, side);
+      if (!move) return;
+      KAP.tryMove(board, move.from, move.to);
+      afterKapMove({ broadcast: false });
+    } else {
+      const move = CK.chooseAIMove(board, side);
+      if (!move) return;
+      if (move.kind === "plain") {
+        CK.applyPlainMove(board, move.from, move.to);
+        finishCheckersTurn({ broadcast: false });
+      } else {
+        let cur = move.from;
+        for (const step of move.chain) { CK.applyCapture(board, cur, step); cur = step.landing; }
+        finishCheckersTurn({ broadcast: false });
+      }
+    }
   }
 
+  // ================= Reset / mode flow =================
   function resetBoardLocal() {
-    board = createBoard();
-    currentTurn = "king";
+    board = activeGame === "kap" ? KAP.createBoard() : CK.createBoard();
+    currentTurn = G().firstTurn;
     selected = null;
     isGameOver = false;
+    ckPendingFrom = null;
     overlay.classList.remove("show");
     syncPieces();
     updateStatus();
@@ -836,7 +1214,35 @@
     startScreen.classList.add("show");
   }
 
-  // ---------- Mode selection wiring ----------
+  function openGameChoiceScreen() {
+    teardownConnection();
+    startScreen.classList.remove("show");
+    overlay.classList.remove("show");
+    gameChoiceScreen.classList.add("show");
+  }
+
+  function selectGame(gameKey) {
+    activeGame = gameKey;
+    const g = G();
+    humanSide = g.sideA.key;
+    mode = "ai";
+    modeScreenTitle.textContent = g.title;
+    const sideBtns = sideButtons.querySelectorAll(".mode-btn");
+    sideBtns[0].textContent = g.sideA.label; sideBtns[0].dataset.value = "a";
+    sideBtns[1].textContent = g.sideB.label; sideBtns[1].dataset.value = "b";
+    sideBtns.forEach((b,i) => b.classList.toggle("active", i === 0));
+    onlinePanel.style.display = "none";
+    startBtn.style.display = "block";
+    document.getElementById("opponentButtons").querySelectorAll(".mode-btn").forEach((b,i) => b.classList.toggle("active", i === 0));
+    gameChoiceScreen.classList.remove("show");
+    startScreen.classList.add("show");
+  }
+
+  // ================= Wiring =================
+  document.querySelectorAll(".game-pick-btn").forEach(btn => {
+    btn.addEventListener("click", () => selectGame(btn.dataset.game));
+  });
+
   function wireToggleGroup(containerId, onChange) {
     const container = document.getElementById(containerId);
     const buttons = container.querySelectorAll(".mode-btn");
@@ -849,9 +1255,9 @@
     });
   }
 
-  wireToggleGroup("sideButtons", value => { humanSide = value; });
+  wireToggleGroup("sideButtons", value => { humanSide = value === "a" ? G().sideA.key : G().sideB.key; });
   wireToggleGroup("opponentButtons", value => {
-    mode = value === "player" ? "local" : value; // "ai" | "local" | "online"
+    mode = value === "player" ? "local" : value;
     const showOnline = mode === "online";
     onlinePanel.style.display = showOnline ? "block" : "none";
     startBtn.style.display = showOnline ? "none" : "block";
@@ -871,6 +1277,7 @@
   document.getElementById("startBtn").addEventListener("click", () => {
     teardownConnection();
     startScreen.classList.remove("show");
+    applyThemeColors();
     updateSubtitle();
     restart();
   });
@@ -879,10 +1286,12 @@
   document.getElementById("overlayRestartBtn").addEventListener("click", restart);
   document.getElementById("changeModeBtn").addEventListener("click", openModeScreen);
   document.getElementById("overlayModeBtn").addEventListener("click", openModeScreen);
+  document.getElementById("backToGameChoice").addEventListener("click", openGameChoiceScreen);
 
-  // ---------- Init ----------
+  // ================= Init =================
   buildStaticLines();
   buildPoints();
+  applyThemeColors();
   syncPieces();
   updateStatus();
   refreshHighlights();
