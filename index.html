@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kings & Pawns</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14181f;
+    --panel: #1c222c;
+    --line-dim: #6b6350;
+    --point: #3a4150;
+    --king: #d9973f;
+    --king-glow: #f4c063;
+    --pawn: #4f8fd1;
+    --pawn-glow: #7db3ee;
+    --legal: #5fbf7a;
+    --selected: #f4c063;
+    --text: #eee6d4;
+    --text-dim: #9aa0ad;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #1e2530 0%, var(--bg) 65%);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: clamp(1.6rem, 5vw, 2.4rem);
+    letter-spacing: 0.04em;
+    margin: 4px 0 2px;
+    text-align: center;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    text-align: center;
+    min-height: 1.2em;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: var(--panel);
+    border: 1px solid #2c3341;
+    border-radius: 14px;
+    padding: 10px 22px;
+    margin-bottom: 18px;
+    font-family: 'Cinzel', serif;
+  }
+
+  .status-item { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+  .status-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .status-dot.king { background: var(--king); box-shadow: 0 0 8px var(--king-glow); }
+  .status-dot.pawn { background: var(--pawn); box-shadow: 0 0 8px var(--pawn-glow); }
+  .status-divider { width: 1px; height: 20px; background: #333c4c; }
+
+  #turnLabel.active-king { color: var(--king-glow); }
+  #turnLabel.active-pawn { color: var(--pawn-glow); }
+
+  .board-wrap {
+    position: relative;
+    width: min(94vw, 480px);
+    filter: drop-shadow(0 12px 28px rgba(0,0,0,0.45));
+  }
+
+  svg#board { width: 100%; height: auto; display: block; }
+
+  .point-hit { cursor: default; }
+  .point-hit.clickable { cursor: pointer; }
+
+  .point-dot { transition: fill 0.15s ease; }
+  .point-dot.legal { fill: var(--legal); }
+  .point-dot.selected { fill: var(--selected); }
+
+  .piece-group { pointer-events: none; transition: opacity 0.3s ease, transform 0.3s ease; }
+
+  .king-shape { fill: var(--king); }
+  .pawn-shape { fill: var(--pawn); }
+
+  .controls { margin-top: 20px; display: flex; gap: 12px; }
+
+  button {
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.03em;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a4356;
+    border-radius: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  button:hover { background: #262e3c; border-color: var(--king); }
+  button:focus-visible { outline: 2px solid var(--king-glow); outline-offset: 2px; }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 12, 16, 0.82);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    padding: 16px;
+  }
+  .overlay.show { display: flex; }
+
+  .overlay-card {
+    background: var(--panel);
+    border: 1px solid var(--line-dim);
+    border-radius: 18px;
+    padding: 32px 36px;
+    text-align: center;
+    max-width: 360px;
+    width: 100%;
+  }
+
+  .overlay-card h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 1.7rem;
+    margin: 0 0 8px;
+  }
+  .overlay-card h2.king-win { color: var(--king-glow); }
+  .overlay-card h2.pawn-win { color: var(--pawn-glow); }
+  .overlay-card p { color: var(--text-dim); margin: 0 0 20px; font-size: 0.92rem; }
+
+  .mode-group { margin-bottom: 18px; text-align: left; }
+  .mode-label {
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .mode-buttons { display: flex; gap: 8px; }
+  .mode-btn {
+    flex: 1;
+    padding: 10px 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 0.88rem;
+    background: #232a36;
+    border: 1px solid #333c4c;
+  }
+  .mode-btn.active {
+    background: rgba(217,151,63,0.18);
+    border-color: var(--king-glow);
+    color: var(--king-glow);
+  }
+  .start-btn {
+    width: 100%;
+    margin-top: 6px;
+    background: var(--king);
+    border-color: var(--king);
+    color: #1c130a;
+    font-weight: 700;
+    padding: 12px;
+  }
+  .start-btn:hover { background: var(--king-glow); border-color: var(--king-glow); }
+
+  .rules-note {
+    max-width: 480px;
+    margin-top: 26px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+    text-align: center;
+  }
+  .rules-note b { color: var(--text); }
+</style>
+</head>
+<body>
+
+  <h1>Kings &amp; Pawns</h1>
+  <div class="subtitle" id="subtitle">Choose your side to begin.</div>
+
+  <div class="status-bar">
+    <div class="status-item"><span class="status-dot king"></span><span id="turnLabel">King's Turn</span></div>
+    <div class="status-divider"></div>
+    <div class="status-item"><span class="status-dot pawn"></span><span id="pawnCount">14 pawns</span></div>
+  </div>
+
+  <div class="board-wrap">
+    <svg id="board" viewBox="0 0 450 450" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="controls">
+    <button id="restartBtn">New Game</button>
+    <button id="changeModeBtn">Change Mode</button>
+  </div>
+
+  <div class="rules-note">
+    <b>Kings</b> move one step along any line and capture by landing so that enemy pawns flank them
+    on both sides of any straight line. <b>Pawns</b> move one step but cannot capture &mdash;
+    they win by trapping both Kings with no legal move.
+  </div>
+
+  <!-- Start / mode-select screen -->
+  <div class="overlay show" id="startScreen">
+    <div class="overlay-card">
+      <h2>Kings &amp; Pawns</h2>
+      <p>Choose your side and opponent</p>
+
+      <div class="mode-group">
+        <div class="mode-label">Play as</div>
+        <div class="mode-buttons" id="sideButtons">
+          <button data-value="king" class="mode-btn active">King</button>
+          <button data-value="pawn" class="mode-btn">Pawn</button>
+        </div>
+      </div>
+
+      <div class="mode-group">
+        <div class="mode-label">Opponent</div>
+        <div class="mode-buttons" id="opponentButtons">
+          <button data-value="ai" class="mode-btn active">AI</button>
+          <button data-value="player" class="mode-btn">Local Player (2P)</button>
+        </div>
+      </div>
+
+      <button id="startBtn" class="start-btn">Start Game</button>
+    </div>
+  </div>
+
+  <!-- Game over screen -->
+  <div class="overlay" id="overlay">
+    <div class="overlay-card">
+      <h2 id="overlayTitle">Kings Win!</h2>
+      <p id="overlaySubtitle">All pawns have been captured.</p>
+      <button id="overlayRestartBtn">Play Again</button>
+      <button id="overlayModeBtn" style="margin-top:8px;">Change Mode</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Board model ----------
+  const SIZE = 5;
+  const PAD = 45;
+  const SPACING = 90;
+
+  function inBounds(p) { return p.x >= 0 && p.x < SIZE && p.y >= 0 && p.y < SIZE; }
+  function isDiagCapable(p) {
+    return (p.x % 2 === 0 && p.y % 2 === 0) || (p.x % 2 === 1 && p.y % 2 === 1);
+  }
+  function samePoint(a, b) { return a.x === b.x && a.y === b.y; }
+  const other = side => (side === "king" ? "pawn" : "king");
+
+  function createBoard() {
+    const b = [];
+    for (let x = 0; x < SIZE; x++) {
+      b.push([]);
+      for (let y = 0; y < SIZE; y++) b[x].push(null);
+    }
+    b[0][0] = { type: "king", owner: "king" };
+    b[4][4] = { type: "king", owner: "king" };
+    for (let x = 0; x < SIZE; x++) {
+      for (let y = 0; y < SIZE; y++) {
+        const isKingCorner = (x === 0 && y === 0) || (x === 4 && y === 4);
+        const isBorder = x === 0 || x === SIZE - 1 || y === 0 || y === SIZE - 1;
+        if (isBorder && !isKingCorner) b[x][y] = { type: "pawn", owner: "pawn" };
+      }
+    }
+    return b;
+  }
+
+  function cloneBoard(b) { return b.map(col => col.map(cell => (cell ? { ...cell } : null))); }
+  function getPiece(b, p) { return b[p.x][p.y]; }
+  function setPiece(b, p, v) { b[p.x][p.y] = v; }
+
+  function getOrthogonalNeighbors(p) {
+    const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+    return dirs.map(d => ({x: p.x+d.x, y: p.y+d.y})).filter(inBounds);
+  }
+  function getDiagonalNeighbors(p) {
+    if (!isDiagCapable(p)) return [];
+    const dirs = [{x:1,y:1},{x:1,y:-1},{x:-1,y:1},{x:-1,y:-1}];
+    return dirs.map(d => ({x: p.x+d.x, y: p.y+d.y})).filter(n => inBounds(n) && isDiagCapable(n));
+  }
+  function getAllNeighbors(p) { return getOrthogonalNeighbors(p).concat(getDiagonalNeighbors(p)); }
+
+  function getLegalMoves(b, from) {
+    const piece = getPiece(b, from);
+    if (!piece) return [];
+    return getAllNeighbors(from).filter(n => !getPiece(b, n));
+  }
+
+  function getSandwichCaptures(b, p) {
+    const result = [];
+    const axisPairs = [ [{x:-1,y:0},{x:1,y:0}], [{x:0,y:-1},{x:0,y:1}] ];
+    if (isDiagCapable(p)) {
+      axisPairs.push([{x:-1,y:-1},{x:1,y:1}]);
+      axisPairs.push([{x:-1,y:1},{x:1,y:-1}]);
+    }
+    for (const [dA, dB] of axisPairs) {
+      const a = {x: p.x+dA.x, y: p.y+dA.y};
+      const c = {x: p.x+dB.x, y: p.y+dB.y};
+      if (!inBounds(a) || !inBounds(c)) continue;
+      const pa = getPiece(b, a), pc = getPiece(b, c);
+      if (pa && pa.type === "pawn" && pc && pc.type === "pawn") { result.push(a); result.push(c); }
+    }
+    return result;
+  }
+
+  function tryMove(b, from, to) {
+    const piece = getPiece(b, from);
+    if (!piece) return null;
+    const legal = getLegalMoves(b, from);
+    if (!legal.some(m => samePoint(m, to))) return null;
+
+    setPiece(b, to, piece);
+    setPiece(b, from, null);
+
+    let captured = [];
+    if (piece.type === "king") {
+      captured = getSandwichCaptures(b, to);
+      for (const c of captured) setPiece(b, c, null);
+    }
+    return { captured };
+  }
+
+  function allPoints() {
+    const pts = [];
+    for (let x = 0; x < SIZE; x++) for (let y = 0; y < SIZE; y++) pts.push({x,y});
+    return pts;
+  }
+  function getPiecesOf(b, owner) {
+    return allPoints().filter(p => { const pc = getPiece(b,p); return pc && pc.owner === owner; });
+  }
+  function countPawns(b) { return getPiecesOf(b, "pawn").length; }
+  function anyLegalMoveFor(b, owner) {
+    return getPiecesOf(b, owner).some(p => getLegalMoves(b, p).length > 0);
+  }
+  function checkWinner(b) {
+    if (countPawns(b) === 0) return "king";
+    if (!anyLegalMoveFor(b, "king")) return "pawn";
+    return null;
+  }
+
+  // ---------- AI (shared heuristics for both sides) ----------
+  function chebyshev(a, b) { return Math.max(Math.abs(a.x-b.x), Math.abs(a.y-b.y)); }
+  function distanceToNearestOwner(b, owner, point) {
+    let best = Infinity;
+    for (const p of getPiecesOf(b, owner)) best = Math.min(best, chebyshev(p, point));
+    return best;
+  }
+
+  function evaluatePawnMove(board, from, to) {
+    const after = cloneBoard(board);
+    tryMove(after, from, to);
+    let score = 0;
+
+    let worstCase = 0;
+    for (const king of getPiecesOf(after, "king")) {
+      for (const dest of getLegalMoves(after, king)) {
+        const probe = cloneBoard(after);
+        const res = tryMove(probe, king, dest);
+        worstCase = Math.max(worstCase, res.captured.length);
+      }
+    }
+    score -= worstCase * 50;
+
+    let kingMobility = 0;
+    for (const king of getPiecesOf(after, "king")) kingMobility += getLegalMoves(after, king).length;
+    score -= kingMobility * 2;
+
+    score += (distanceToNearestOwner(board, "king", from) - distanceToNearestOwner(after, "king", to)) * 3;
+    if (kingMobility === 0) score += 10000;
+    return score;
+  }
+
+  function evaluateKingMove(board, from, to) {
+    const after = cloneBoard(board);
+    const result = tryMove(after, from, to);
+    let score = result.captured.length * 100;
+
+    const winner = checkWinner(after);
+    if (winner === "pawn") score -= 100000; // never self-trap
+    if (winner === "king") score += 100000; // finishing move
+
+    let kingMobility = 0;
+    for (const king of getPiecesOf(after, "king")) kingMobility += getLegalMoves(after, king).length;
+    score += kingMobility * 2;
+
+    score += (distanceToNearestOwner(board, "pawn", from) - distanceToNearestOwner(after, "pawn", to)) * 3;
+    return score;
+  }
+
+  function chooseAIMove(board, side) {
+    const pieces = getPiecesOf(board, side);
+    const evalFn = side === "pawn" ? evaluatePawnMove : evaluateKingMove;
+    const candidates = [];
+    for (const piece of pieces) {
+      for (const dest of getLegalMoves(board, piece)) {
+        candidates.push({ from: piece, to: dest, score: evalFn(board, piece, dest) });
+      }
+    }
+    if (candidates.length === 0) return null;
+    candidates.sort((a,b) => b.score - a.score);
+    const best = candidates[0].score;
+    const top = candidates.filter(c => c.score >= best - 0.01);
+    return top[Math.floor(Math.random() * top.length)];
+  }
+
+  // ---------- Game state ----------
+  let board = createBoard();
+  let currentTurn = "king";
+  let selected = null;
+  let isGameOver = false;
+  let humanSide = "king";
+  let vsAI = true;
+
+  function isHumanTurn() { return !vsAI || currentTurn === humanSide; }
+
+  // ---------- Rendering ----------
+  const svg = document.getElementById("board");
+  const NS = "http://www.w3.org/2000/svg";
+  const turnLabel = document.getElementById("turnLabel");
+  const pawnCountLabel = document.getElementById("pawnCount");
+  const subtitle = document.getElementById("subtitle");
+  const overlay = document.getElementById("overlay");
+  const overlayTitle = document.getElementById("overlayTitle");
+  const overlaySubtitle = document.getElementById("overlaySubtitle");
+  const startScreen = document.getElementById("startScreen");
+
+  function coord(u) { return PAD + u * SPACING; }
+
+  const lineLayer = document.createElementNS(NS, "g");
+  const dotLayer = document.createElementNS(NS, "g");
+  const pieceLayer = document.createElementNS(NS, "g");
+  const hitLayer = document.createElementNS(NS, "g");
+  svg.appendChild(lineLayer);
+  svg.appendChild(dotLayer);
+  svg.appendChild(pieceLayer);
+  svg.appendChild(hitLayer); // always last => always on top => always receives clicks
+
+  function buildStaticLines() {
+    const lines = [];
+    const full = SIZE - 1;
+    lines.push({x1:coord(0),y1:coord(0),x2:coord(full),y2:coord(0), w:4});
+    lines.push({x1:coord(0),y1:coord(full),x2:coord(full),y2:coord(full), w:4});
+    lines.push({x1:coord(0),y1:coord(0),x2:coord(0),y2:coord(full), w:4});
+    lines.push({x1:coord(full),y1:coord(0),x2:coord(full),y2:coord(full), w:4});
+    lines.push({x1:coord(2),y1:coord(0),x2:coord(2),y2:coord(full), w:4});
+    lines.push({x1:coord(0),y1:coord(2),x2:coord(full),y2:coord(2), w:4});
+    lines.push({x1:coord(1),y1:coord(0),x2:coord(1),y2:coord(full), w:1.5});
+    lines.push({x1:coord(3),y1:coord(0),x2:coord(3),y2:coord(full), w:1.5});
+    lines.push({x1:coord(0),y1:coord(1),x2:coord(full),y2:coord(1), w:1.5});
+    lines.push({x1:coord(0),y1:coord(3),x2:coord(full),y2:coord(3), w:1.5});
+    const quads = [[0,0],[2,0],[0,2],[2,2]];
+    for (const [qx,qy] of quads) {
+      lines.push({x1:coord(qx),y1:coord(qy),x2:coord(qx+2),y2:coord(qy+2), w:1.5});
+      lines.push({x1:coord(qx+2),y1:coord(qy),x2:coord(qx),y2:coord(qy+2), w:1.5});
+    }
+    for (const l of lines) {
+      const el = document.createElementNS(NS, "line");
+      el.setAttribute("x1", l.x1); el.setAttribute("y1", l.y1);
+      el.setAttribute("x2", l.x2); el.setAttribute("y2", l.y2);
+      el.setAttribute("stroke", "var(--line-dim)");
+      el.setAttribute("stroke-width", l.w);
+      el.setAttribute("stroke-linecap", "round");
+      el.style.pointerEvents = "none";
+      lineLayer.appendChild(el);
+    }
+  }
+
+  function kingShape(cx, cy) {
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "piece-group");
+    const w = 17, h = 14, bandH = 6;
+    const d = `M ${cx-w},${cy+h-bandH} L ${cx-w},${cy+h} L ${cx+w},${cy+h} L ${cx+w},${cy+h-bandH}
+               L ${cx+w*0.6},${cy-h*0.2} L ${cx+w*0.25},${cy+h*0.35} L ${cx},${cy-h}
+               L ${cx-w*0.25},${cy+h*0.35} L ${cx-w*0.6},${cy-h*0.2} Z`;
+    const p = document.createElementNS(NS, "path");
+    p.setAttribute("d", d);
+    p.setAttribute("class", "king-shape");
+    g.appendChild(p);
+    return g;
+  }
+
+  function pawnShape(cx, cy) {
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "piece-group");
+    const head = document.createElementNS(NS, "circle");
+    head.setAttribute("cx", cx); head.setAttribute("cy", cy - 7); head.setAttribute("r", 8.5);
+    head.setAttribute("class", "pawn-shape");
+    g.appendChild(head);
+    const base = document.createElementNS(NS, "path");
+    base.setAttribute("d", `M ${cx-12},${cy+13} Q ${cx},${cy+3} ${cx+12},${cy+13} Z`);
+    base.setAttribute("class", "pawn-shape");
+    g.appendChild(base);
+    return g;
+  }
+
+  const pointEls = {};
+
+  function buildPoints() {
+    for (const p of allPoints()) {
+      const cx = coord(p.x), cy = coord(p.y);
+
+      const dot = document.createElementNS(NS, "circle");
+      dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", 6);
+      dot.setAttribute("fill", "var(--point)");
+      dot.setAttribute("class", "point-dot");
+      dot.style.pointerEvents = "none";
+      dotLayer.appendChild(dot);
+
+      const hit = document.createElementNS(NS, "circle");
+      hit.setAttribute("cx", cx); hit.setAttribute("cy", cy); hit.setAttribute("r", 38);
+      hit.setAttribute("fill", "transparent");
+      hit.setAttribute("class", "point-hit");
+      hit.addEventListener("click", () => onPointClicked(p));
+      hitLayer.appendChild(hit);
+
+      pointEls[p.x+","+p.y] = { hit, dot, pieceGroup: null };
+    }
+  }
+
+  function syncPieces() {
+    for (const p of allPoints()) {
+      const key = p.x+","+p.y;
+      const entry = pointEls[key];
+      if (entry.pieceGroup) { pieceLayer.removeChild(entry.pieceGroup); entry.pieceGroup = null; }
+      const piece = getPiece(board, p);
+      if (!piece) continue;
+      const cx = coord(p.x), cy = coord(p.y);
+      const group = piece.type === "king" ? kingShape(cx, cy) : pawnShape(cx, cy);
+      pieceLayer.appendChild(group);
+      entry.pieceGroup = group;
+    }
+  }
+
+  function refreshHighlights() {
+    const legalMoves = selected ? getLegalMoves(board, selected) : [];
+    const humanTurn = isHumanTurn();
+    for (const p of allPoints()) {
+      const entry = pointEls[p.x+","+p.y];
+      const isSelected = selected && samePoint(selected, p);
+      const isLegal = legalMoves.some(m => samePoint(m, p));
+      entry.dot.classList.toggle("selected", !!isSelected);
+      entry.dot.classList.toggle("legal", !!isLegal && !isSelected);
+      if (!isSelected && !isLegal) entry.dot.setAttribute("fill", "var(--point)");
+      const piece = getPiece(board, p);
+      const clickable = !isGameOver && humanTurn &&
+        ((piece && piece.owner === currentTurn) || isLegal);
+      entry.hit.classList.toggle("clickable", clickable);
+    }
+  }
+
+  function updateStatus() {
+    turnLabel.textContent = isGameOver ? "Game Over" : (currentTurn === "king" ? "King's Turn" : "Pawn's Turn");
+    turnLabel.classList.toggle("active-king", currentTurn === "king" && !isGameOver);
+    turnLabel.classList.toggle("active-pawn", currentTurn === "pawn" && !isGameOver);
+    pawnCountLabel.textContent = countPawns(board) + " pawns";
+  }
+
+  function updateSubtitle() {
+    if (!vsAI) { subtitle.textContent = "Local 2-player \u2014 pass the device each turn."; return; }
+    subtitle.textContent = humanSide === "king"
+      ? "You command the Kings. The Pawns are played by the machine."
+      : "You command the Pawns. The Kings are played by the machine.";
+  }
+
+  function showGameOver(winner) {
+    overlay.classList.add("show");
+    if (winner === "king") {
+      overlayTitle.textContent = "Kings Win!";
+      overlayTitle.className = "king-win";
+      overlaySubtitle.textContent = "All pawns have been captured.";
+    } else {
+      overlayTitle.textContent = "Pawns Win!";
+      overlayTitle.className = "pawn-win";
+      overlaySubtitle.textContent = "Both Kings are trapped with no legal move.";
+    }
+  }
+
+  // ---------- Interaction ----------
+  function onPointClicked(p) {
+    if (isGameOver || !isHumanTurn()) return;
+
+    if (selected) {
+      const result = tryMove(board, selected, p);
+      if (result) { selected = null; afterMove(); return; }
+      const piece = getPiece(board, p);
+      if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); return; }
+      selected = null; refreshHighlights();
+      return;
+    }
+
+    const piece = getPiece(board, p);
+    if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); }
+  }
+
+  function afterMove() {
+    syncPieces();
+    const winner = checkWinner(board);
+    if (winner) {
+      isGameOver = true;
+      updateStatus();
+      refreshHighlights();
+      setTimeout(() => showGameOver(winner), 300);
+      return;
+    }
+    currentTurn = other(currentTurn);
+    updateStatus();
+    refreshHighlights();
+    maybeTriggerAI();
+  }
+
+  function maybeTriggerAI() {
+    if (isGameOver) return;
+    if (vsAI && currentTurn !== humanSide) setTimeout(() => aiMove(currentTurn), 550);
+  }
+
+  function aiMove(side) {
+    if (isGameOver || currentTurn !== side) return;
+    const move = chooseAIMove(board, side);
+    if (!move) return;
+    tryMove(board, move.from, move.to);
+    afterMove();
+  }
+
+  function restart() {
+    board = createBoard();
+    currentTurn = "king";
+    selected = null;
+    isGameOver = false;
+    overlay.classList.remove("show");
+    syncPieces();
+    updateStatus();
+    refreshHighlights();
+    maybeTriggerAI();
+  }
+
+  function openModeScreen() {
+    overlay.classList.remove("show");
+    startScreen.classList.add("show");
+  }
+
+  // ---------- Mode selection wiring ----------
+  function wireToggleGroup(containerId, onChange) {
+    const container = document.getElementById(containerId);
+    const buttons = container.querySelectorAll(".mode-btn");
+    buttons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        buttons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        onChange(btn.dataset.value);
+      });
+    });
+  }
+
+  wireToggleGroup("sideButtons", value => { humanSide = value; });
+  wireToggleGroup("opponentButtons", value => { vsAI = (value === "ai"); });
+
+  document.getElementById("startBtn").addEventListener("click", () => {
+    startScreen.classList.remove("show");
+    updateSubtitle();
+    restart();
+  });
+
+  document.getElementById("restartBtn").addEventListener("click", restart);
+  document.getElementById("overlayRestartBtn").addEventListener("click", restart);
+  document.getElementById("changeModeBtn").addEventListener("click", openModeScreen);
+  document.getElementById("overlayModeBtn").addEventListener("click", openModeScreen);
+
+  // ---------- Init ----------
+  buildStaticLines();
+  buildPoints();
+  syncPieces();
+  updateStatus();
+  refreshHighlights();
+})();
+</script>
+</body>
+</html>
