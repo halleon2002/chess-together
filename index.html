@@ -518,10 +518,6 @@
     return top[Math.floor(Math.random() * top.length)];
   };
 
-  KAP.pieceShape = function (piece, cx, cy) {
-    return piece.type === "king" ? shapeKing(cx, cy) : shapePawn(cx, cy);
-  };
-
   // ================= CHECKERS MODULE =================
   const CK = {};
   CK.other = side => (side === "white" ? "black" : "white");
@@ -729,10 +725,6 @@
     return score;
   };
 
-  CK.pieceShape = function (piece, cx, cy) {
-    return shapeCheckers(piece, cx, cy);
-  };
-
   // ================= Active game dispatch =================
   const GAMES = {
     kap: {
@@ -764,6 +756,8 @@
 
   let peer = null, conn = null, isHost = false;
   const ROOM_PREFIX = "kap-";
+  let ckChainOrigin = null;
+  let ckChainSteps = [];
 
   function G() { return GAMES[activeGame]; }
   function otherSide(side) { return activeGame === "kap" ? KAP.other(side) : CK.other(side); }
@@ -833,13 +827,13 @@
     }
   }
 
-  function shapeKing(cx, cy) {
+  function shapeKing() {
     const g = document.createElementNS(NS, "g");
     g.setAttribute("class", "piece-group");
     const w = 17, h = 14, bandH = 6;
-    const d = `M ${cx-w},${cy+h-bandH} L ${cx-w},${cy+h} L ${cx+w},${cy+h} L ${cx+w},${cy+h-bandH}
-               L ${cx+w*0.6},${cy-h*0.2} L ${cx+w*0.25},${cy+h*0.35} L ${cx},${cy-h}
-               L ${cx-w*0.25},${cy+h*0.35} L ${cx-w*0.6},${cy-h*0.2} Z`;
+    const d = `M ${-w},${h-bandH} L ${-w},${h} L ${w},${h} L ${w},${h-bandH}
+               L ${w*0.6},${-h*0.2} L ${w*0.25},${h*0.35} L 0,${-h}
+               L ${-w*0.25},${h*0.35} L ${-w*0.6},${-h*0.2} Z`;
     const p = document.createElementNS(NS, "path");
     p.setAttribute("d", d);
     p.setAttribute("class", "king-shape");
@@ -847,30 +841,30 @@
     return g;
   }
 
-  function shapePawn(cx, cy) {
+  function shapePawn() {
     const g = document.createElementNS(NS, "g");
     g.setAttribute("class", "piece-group");
     const head = document.createElementNS(NS, "circle");
-    head.setAttribute("cx", cx); head.setAttribute("cy", cy - 7); head.setAttribute("r", 8.5);
+    head.setAttribute("cx", 0); head.setAttribute("cy", -7); head.setAttribute("r", 8.5);
     head.setAttribute("class", "pawn-shape");
     g.appendChild(head);
     const base = document.createElementNS(NS, "path");
-    base.setAttribute("d", `M ${cx-12},${cy+13} Q ${cx},${cy+3} ${cx+12},${cy+13} Z`);
+    base.setAttribute("d", `M -12,13 Q 0,3 12,13 Z`);
     base.setAttribute("class", "pawn-shape");
     g.appendChild(base);
     return g;
   }
 
-  function shapeCheckers(piece, cx, cy) {
+  function shapeCheckers(piece) {
     const g = document.createElementNS(NS, "g");
     g.setAttribute("class", "piece-group");
     const disc = document.createElementNS(NS, "circle");
-    disc.setAttribute("cx", cx); disc.setAttribute("cy", cy); disc.setAttribute("r", 15);
+    disc.setAttribute("cx", 0); disc.setAttribute("cy", 0); disc.setAttribute("r", 15);
     disc.setAttribute("class", piece.owner === "white" ? "ck-white" : "ck-black");
     g.appendChild(disc);
     if (piece.type === "king") {
       const ring = document.createElementNS(NS, "circle");
-      ring.setAttribute("cx", cx); ring.setAttribute("cy", cy); ring.setAttribute("r", 8);
+      ring.setAttribute("cx", 0); ring.setAttribute("cy", 0); ring.setAttribute("r", 8);
       ring.setAttribute("class", "ck-king-mark " + (piece.owner === "white" ? "on-white" : "on-black"));
       g.appendChild(ring);
     }
@@ -901,6 +895,19 @@
     }
   }
 
+  function makePieceShape(piece) {
+    if (activeGame === "kap") return piece.type === "king" ? shapeKing() : shapePawn();
+    return shapeCheckers(piece);
+  }
+
+  function placeGroupAt(group, point, animate) {
+    const cx = coord(point.x), cy = coord(point.y);
+    group.style.transition = animate ? "transform 0.28s ease" : "none";
+    group.style.transform = `translate(${cx}px, ${cy}px)`;
+  }
+
+  // Full (non-animated) rebuild of every piece from the current board state.
+  // Used only for initial setup and full board resets.
   function syncPieces() {
     for (const p of allPoints()) {
       const key = p.x+","+p.y;
@@ -908,11 +915,62 @@
       if (entry.pieceGroup) { pieceLayer.removeChild(entry.pieceGroup); entry.pieceGroup = null; }
       const piece = getPiece(board, p);
       if (!piece) continue;
-      const cx = coord(p.x), cy = coord(p.y);
-      const group = activeGame === "kap" ? KAP.pieceShape(piece, cx, cy) : CK.pieceShape(piece, cx, cy);
+      const group = makePieceShape(piece);
+      placeGroupAt(group, p, false);
       pieceLayer.appendChild(group);
       entry.pieceGroup = group;
     }
+  }
+
+  // Animate an existing piece sliding from one point to another (same DOM element).
+  function animateMove(from, to) {
+    const fromEntry = pointEls[from.x+","+from.y];
+    const toEntry = pointEls[to.x+","+to.y];
+    const group = fromEntry.pieceGroup;
+    fromEntry.pieceGroup = null;
+    if (!group) return;
+    toEntry.pieceGroup = group;
+    placeGroupAt(group, to, true);
+  }
+
+  // Fade + shrink a captured piece out, then remove it from the DOM.
+  function animateCapture(at) {
+    const entry = pointEls[at.x+","+at.y];
+    const group = entry.pieceGroup;
+    entry.pieceGroup = null;
+    if (!group) return;
+    group.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+    group.style.opacity = "0";
+    const cx = coord(at.x), cy = coord(at.y);
+    group.style.transform = `translate(${cx}px, ${cy}px) scale(0.2)`;
+    setTimeout(() => { if (group.parentNode) pieceLayer.removeChild(group); }, 260);
+  }
+
+  // Re-render a single piece in place (e.g. after promotion changes its shape).
+  function refreshPieceAt(point) {
+    const entry = pointEls[point.x+","+point.y];
+    if (entry.pieceGroup) { pieceLayer.removeChild(entry.pieceGroup); entry.pieceGroup = null; }
+    const piece = getPiece(board, point);
+    if (!piece) return;
+    const group = makePieceShape(piece);
+    placeGroupAt(group, point, false);
+    pieceLayer.appendChild(group);
+    entry.pieceGroup = group;
+  }
+
+  // Plays a completed multi-jump chain hop-by-hop (board state is already fully
+  // applied; this just replays the visuals in sequence), then calls onComplete.
+  function animateChainCaptures(from, steps, onComplete) {
+    let idx = 0, cur = from;
+    function next() {
+      if (idx >= steps.length) { if (onComplete) onComplete(); return; }
+      const s = steps[idx++];
+      animateMove(cur, s.landing);
+      animateCapture(s.mid);
+      cur = s.landing;
+      setTimeout(next, 300);
+    }
+    next();
   }
 
   function currentLegalPlain(point) {
@@ -1064,15 +1122,21 @@
       humanSide = msg.side;
       beginOnlineGame();
     } else if (msg.type === "kapMove") {
-      KAP.tryMove(board, msg.from, msg.to);
-      afterKapMove({ broadcast: false });
+      const result = KAP.tryMove(board, msg.from, msg.to);
+      afterKapMove({ broadcast: false, from: msg.from, to: msg.to, captured: result ? result.captured : [] });
     } else if (msg.type === "ckPlain") {
-      CK.applyPlainMove(board, msg.from, msg.to);
+      const result = CK.applyPlainMove(board, msg.from, msg.to);
+      animateMove(msg.from, msg.to);
+      if (result.promoted) setTimeout(() => refreshPieceAt(msg.to), 280);
       finishCheckersTurn({ broadcast: false });
     } else if (msg.type === "ckCapture") {
       let cur = msg.from;
       for (const step of msg.steps) { CK.applyCapture(board, cur, step); cur = step.landing; }
-      finishCheckersTurn({ broadcast: false });
+      const finalPos = msg.steps[msg.steps.length - 1].landing;
+      animateChainCaptures(msg.from, msg.steps, () => {
+        refreshPieceAt(finalPos);
+        finishCheckersTurn({ broadcast: false });
+      });
     } else if (msg.type === "restart") {
       resetBoardLocal();
     }
@@ -1097,7 +1161,7 @@
     if (selected) {
       const from = selected;
       const result = KAP.tryMove(board, from, p);
-      if (result) { selected = null; afterKapMove({ broadcast: true, from, to: p }); return; }
+      if (result) { selected = null; afterKapMove({ broadcast: true, from, to: p, captured: result.captured }); return; }
       const piece = getPiece(board, p);
       if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); return; }
       selected = null; refreshHighlights();
@@ -1109,7 +1173,8 @@
 
   function afterKapMove(opts) {
     opts = opts || {};
-    syncPieces();
+    if (opts.from && opts.to) animateMove(opts.from, opts.to);
+    if (opts.captured) for (const c of opts.captured) animateCapture(c);
     if (mode === "online" && opts.broadcast && conn && conn.open) {
       conn.send({ type: "kapMove", from: opts.from, to: opts.to });
     }
@@ -1129,14 +1194,19 @@
     if (ckPendingFrom) {
       const caps = CK.getCaptures(board, ckPendingFrom);
       const match = caps.find(c => samePoint(c.landing, p));
-      if (match) performCheckersCapture(ckPendingFrom, match, [match]);
+      if (match) performCheckersCapture(match);
       return;
     }
 
     if (selected) {
       const caps = CK.getCaptures(board, selected);
       const capMatch = caps.find(c => samePoint(c.landing, p));
-      if (capMatch) { performCheckersCapture(selected, capMatch, [capMatch]); return; }
+      if (capMatch) {
+        ckChainOrigin = selected;
+        ckChainSteps = [];
+        performCheckersCapture(capMatch);
+        return;
+      }
 
       const plains = CK.getPlainMoves(board, selected);
       if (plains.some(m => samePoint(m, p))) { performCheckersPlain(selected, p); return; }
@@ -1154,30 +1224,39 @@
   }
 
   function performCheckersPlain(from, to) {
-    CK.applyPlainMove(board, from, to);
+    const result = CK.applyPlainMove(board, from, to);
     selected = null;
+    animateMove(from, to);
+    if (result.promoted) setTimeout(() => refreshPieceAt(to), 280);
     finishCheckersTurn({ broadcast: true, kind: "plain", from, to });
   }
 
-  function performCheckersCapture(from, capture, stepsSoFar) {
+  function performCheckersCapture(capture) {
+    const from = ckPendingFrom || selected;
     const result = CK.applyCapture(board, from, capture);
+    ckChainSteps.push(capture);
     const landedAt = result.landedAt;
+    animateMove(from, landedAt);
+    animateCapture(capture.mid);
+
     const canContinue = CK.getCaptures(board, landedAt).length > 0;
-    syncPieces();
     if (canContinue) {
       ckPendingFrom = landedAt;
       selected = landedAt;
       updateStatus(); refreshHighlights();
       return;
     }
-    ckPendingFrom = null;
+
+    const finalFrom = ckChainOrigin;
+    const finalSteps = ckChainSteps;
+    ckPendingFrom = null; ckChainOrigin = null; ckChainSteps = [];
     selected = null;
-    finishCheckersTurn({ broadcast: true, kind: "capture", from, steps: stepsSoFar });
+    if (result.promoted) setTimeout(() => refreshPieceAt(landedAt), 280);
+    finishCheckersTurn({ broadcast: true, kind: "capture", from: finalFrom, steps: finalSteps });
   }
 
   function finishCheckersTurn(opts) {
     opts = opts || {};
-    syncPieces();
     if (mode === "online" && opts.broadcast && conn && conn.open) {
       if (opts.kind === "plain") conn.send({ type: "ckPlain", from: opts.from, to: opts.to });
       else if (opts.kind === "capture") conn.send({ type: "ckCapture", from: opts.from, steps: opts.steps });
@@ -1204,18 +1283,24 @@
     if (activeGame === "kap") {
       const move = KAP.chooseAIMove(board, side);
       if (!move) return;
-      KAP.tryMove(board, move.from, move.to);
-      afterKapMove({ broadcast: false });
+      const result = KAP.tryMove(board, move.from, move.to);
+      afterKapMove({ broadcast: false, from: move.from, to: move.to, captured: result.captured });
     } else {
       const move = CK.chooseAIMove(board, side);
       if (!move) return;
       if (move.kind === "plain") {
-        CK.applyPlainMove(board, move.from, move.to);
+        const result = CK.applyPlainMove(board, move.from, move.to);
+        animateMove(move.from, move.to);
+        if (result.promoted) setTimeout(() => refreshPieceAt(move.to), 280);
         finishCheckersTurn({ broadcast: false });
       } else {
         let cur = move.from;
         for (const step of move.chain) { CK.applyCapture(board, cur, step); cur = step.landing; }
-        finishCheckersTurn({ broadcast: false });
+        const finalPos = move.chain[move.chain.length - 1].landing;
+        animateChainCaptures(move.from, move.chain, () => {
+          refreshPieceAt(finalPos);
+          finishCheckersTurn({ broadcast: false });
+        });
       }
     }
   }
@@ -1227,6 +1312,8 @@
     selected = null;
     isGameOver = false;
     ckPendingFrom = null;
+    ckChainOrigin = null;
+    ckChainSteps = [];
     overlay.classList.remove("show");
     syncPieces();
     updateStatus();
