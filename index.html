@@ -1251,7 +1251,10 @@
     const finalSteps = ckChainSteps;
     ckPendingFrom = null; ckChainOrigin = null; ckChainSteps = [];
     selected = null;
-    if (result.promoted) setTimeout(() => refreshPieceAt(landedAt), 280);
+    // Always refresh (not just when this specific hop promoted it) — promotion
+    // may have happened on an earlier hop in the chain, in which case this final
+    // hop's own "promoted" flag correctly comes back false (already a King).
+    setTimeout(() => refreshPieceAt(landedAt), 280);
     finishCheckersTurn({ broadcast: true, kind: "capture", from: finalFrom, steps: finalSteps });
   }
 
