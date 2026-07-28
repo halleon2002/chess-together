@@ -1061,7 +1061,7 @@
   }
 
   // ================= Online networking =================
-  function setOnlineStatus(text, cls) {
+  /*function setOnlineStatus(text, cls) {
     onlineStatus.textContent = text || "";
     onlineStatus.className = "online-status" + (cls ? " " + cls : "");
   }
@@ -1147,7 +1147,282 @@
     applyThemeColors();
     updateSubtitle();
     resetBoardLocal();
-  }
+  }*/
+  // ==========================
+// Online Networking v2
+// ==========================
+
+const PEER_CONFIG = {
+    host: "0.peerjs.com",
+    port: 443,
+    secure: true,
+    debug: 2,
+
+    config: {
+        iceServers: [
+            {
+                urls: [
+                    "stun:stun.l.google.com:19302",
+                    "stun:stun1.l.google.com:19302",
+                    "stun:stun2.l.google.com:19302"
+                ]
+            }
+        ]
+    }
+};
+
+function setOnlineStatus(text, cls = "") {
+    onlineStatus.textContent = text || "";
+    onlineStatus.className = "online-status" + (cls ? " " + cls : "");
+}
+
+function randomRoomCode(length = 6) {
+
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    let result = "";
+
+    for (let i = 0; i < length; i++) {
+
+        result += chars[Math.floor(Math.random() * chars.length)];
+
+    }
+
+    return result;
+}
+
+function teardownConnection() {
+
+    if (conn) {
+
+        try {
+
+            conn.close();
+
+        } catch {}
+
+    }
+
+    if (peer) {
+
+        try {
+
+            peer.destroy();
+
+        } catch {}
+
+    }
+
+    conn = null;
+    peer = null;
+}
+
+function createRoom() {
+
+    teardownConnection();
+
+    isHost = true;
+
+    const roomCode = randomRoomCode();
+
+    roomCodeDisplay.style.display = "none";
+
+    setOnlineStatus("Creating room...");
+
+    peer = new Peer(
+        ROOM_PREFIX + roomCode.toLowerCase(),
+        PEER_CONFIG
+    );
+
+    peer.on("open", id => {
+
+        console.log("Host Peer ID:", id);
+
+        roomCodeDisplay.style.display = "block";
+        roomCodeDisplay.textContent = roomCode;
+
+        setOnlineStatus("Waiting for player...", "success");
+
+    });
+
+    peer.on("connection", incoming => {
+
+        console.log("Incoming connection");
+
+        conn = incoming;
+
+        setupConnection();
+
+    });
+
+    peer.on("disconnected", () => {
+
+        console.log("Peer disconnected");
+
+        setOnlineStatus("Reconnecting...");
+
+        peer.reconnect();
+
+    });
+
+    peer.on("close", () => {
+
+        console.log("Peer closed");
+
+    });
+
+    peer.on("error", err => {
+
+        console.error(err);
+
+        setOnlineStatus(
+            "Peer Error : " + err.type,
+            "error"
+        );
+
+    });
+}
+
+function joinRoom(codeRaw) {
+
+    const roomCode = codeRaw.trim().toLowerCase();
+
+    if (!roomCode) {
+
+        setOnlineStatus(
+            "Please enter room code.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    teardownConnection();
+
+    isHost = false;
+
+    setOnlineStatus("Connecting...");
+
+    peer = new Peer(undefined, PEER_CONFIG);
+
+    peer.on("open", id => {
+
+        console.log("Client Peer ID:", id);
+
+        conn = peer.connect(
+            ROOM_PREFIX + roomCode,
+            {
+                reliable: true,
+                serialization: "json"
+            }
+        );
+
+        setupConnection();
+
+    });
+
+    peer.on("error", err => {
+
+        console.error(err);
+
+        setOnlineStatus(
+            "Connection Failed",
+            "error"
+        );
+
+    });
+}
+
+function setupConnection() {
+
+    if (!conn) return;
+
+    conn.on("open", () => {
+
+        console.log("Connected");
+
+        setOnlineStatus(
+            "Connected!",
+            "success"
+        );
+
+        if (isHost) {
+
+            conn.send({
+
+                type: "assignSide",
+
+                game: activeGame,
+
+                side: otherSide(humanSide)
+
+            });
+
+            beginOnlineGame();
+
+        }
+
+    });
+
+    conn.on("data", data => {
+
+        console.log("Receive:", data);
+
+        onData(data);
+
+    });
+
+    conn.on("close", () => {
+
+        console.log("Connection closed");
+
+        setOnlineStatus(
+            "Friend disconnected.",
+            "error"
+        );
+
+    });
+
+    conn.on("error", err => {
+
+        console.error(err);
+
+        setOnlineStatus(
+            "Network Error",
+            "error"
+        );
+
+    });
+
+    setTimeout(() => {
+
+        if (!conn.open) {
+
+            setOnlineStatus(
+                "Connection Timeout",
+                "error"
+            );
+
+        }
+
+    }, 15000);
+
+}
+
+function beginOnlineGame() {
+
+    mode = "online";
+
+    startScreen.classList.remove("show");
+
+    applyThemeColors();
+
+    updateSubtitle();
+
+    resetBoardLocal();
+
+}
 
   // ================= Interaction: dispatch by active game =================
   function onPointClicked(p) {
