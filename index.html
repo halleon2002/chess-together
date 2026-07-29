@@ -296,6 +296,10 @@
           <strong>Checkers</strong>
           <span>Classic jump-capture checkers, adapted to this board's diagonal + straight lines. Forced captures, multi-jumps, promotion.</span>
         </button>
+        <button class="game-pick-btn" data-game="cothu">
+          <strong>Cờ Thú (Jungle Chess)</strong>
+          <span>Vietnamese animal chess on its own 7\u00d79 board: rank-based captures, river, traps, and a Rat that can take down an Elephant. Win by reaching the enemy den.</span>
+        </button>
       </div>
     </div>
   </div>
@@ -725,7 +729,163 @@
     return score;
   };
 
-  // ================= Active game dispatch =================
+  // ================= CỜ THÚ (JUNGLE CHESS) MODULE =================
+  const CT = {};
+  const CT_COLS = 7, CT_ROWS = 9;
+  CT.RANK = { rat:1, cat:2, dog:3, wolf:4, leopard:5, tiger:6, lion:7, elephant:8 };
+  CT.LETTER = { rat:"R", cat:"C", dog:"D", wolf:"W", leopard:"P", tiger:"T", lion:"L", elephant:"E" };
+  CT.other = side => (side === "top" ? "bottom" : "top");
+
+  function ctInBounds(p) { return p.x >= 0 && p.x < CT_COLS && p.y >= 0 && p.y < CT_ROWS; }
+  function ctAllPoints() {
+    const pts = [];
+    for (let x = 0; x < CT_COLS; x++) for (let y = 0; y < CT_ROWS; y++) pts.push({x,y});
+    return pts;
+  }
+  function ctGetPiecesOf(b, owner) {
+    return ctAllPoints().filter(p => { const pc = getPiece(b,p); return pc && pc.owner === owner; });
+  }
+
+  const CT_RIVER = new Set();
+  for (const c of [1,2,4,5]) for (const r of [3,4,5]) CT_RIVER.add(c+","+r);
+  function ctIsRiver(p) { return CT_RIVER.has(p.x+","+p.y); }
+
+  const CT_DEN = { top: {x:3,y:0}, bottom: {x:3,y:8} };
+  function ctDenOwnerAt(p) { if (p.x===3&&p.y===0) return "top"; if (p.x===3&&p.y===8) return "bottom"; return null; }
+
+  const CT_TRAPS = { top: [{x:2,y:0},{x:4,y:0},{x:3,y:1}], bottom: [{x:2,y:8},{x:4,y:8},{x:3,y:7}] };
+  function ctTrapOwnerAt(p) {
+    for (const t of CT_TRAPS.top) if (t.x===p.x && t.y===p.y) return "top";
+    for (const t of CT_TRAPS.bottom) if (t.x===p.x && t.y===p.y) return "bottom";
+    return null;
+  }
+
+  const CT_JUMP_LINES = [];
+  for (const r of [3,4,5]) {
+    CT_JUMP_LINES.push({a:{x:0,y:r}, b:{x:3,y:r}, through:[{x:1,y:r},{x:2,y:r}]});
+    CT_JUMP_LINES.push({a:{x:3,y:r}, b:{x:6,y:r}, through:[{x:4,y:r},{x:5,y:r}]});
+  }
+  for (const c of [1,2,4,5]) {
+    CT_JUMP_LINES.push({a:{x:c,y:2}, b:{x:c,y:6}, through:[{x:c,y:3},{x:c,y:4},{x:c,y:5}]});
+  }
+
+  CT.createBoard = function () {
+    const b = []; for (let x=0;x<CT_COLS;x++){ b.push([]); for(let y=0;y<CT_ROWS;y++) b[x].push(null); }
+    const place = (type,x,y,owner) => { b[x][y] = { type, owner }; };
+    place("lion",0,0,"top"); place("tiger",6,0,"top");
+    place("dog",1,1,"top"); place("cat",5,1,"top");
+    place("rat",0,2,"top"); place("leopard",2,2,"top"); place("wolf",4,2,"top"); place("elephant",6,2,"top");
+    place("tiger",0,8,"bottom"); place("lion",6,8,"bottom");
+    place("cat",1,7,"bottom"); place("dog",5,7,"bottom");
+    place("elephant",0,6,"bottom"); place("wolf",2,6,"bottom"); place("leopard",4,6,"bottom"); place("rat",6,6,"bottom");
+    return b;
+  };
+
+  function ctEffectiveRank(board, p) {
+    const piece = getPiece(board, p); if (!piece) return 0;
+    const trapOwner = ctTrapOwnerAt(p);
+    if (trapOwner && trapOwner !== piece.owner) return 0; // standing on an enemy trap: defenseless
+    return CT.RANK[piece.type];
+  }
+
+  function ctCanCapture(board, attackerPos, defenderPos) {
+    const atk = getPiece(board, attackerPos), def = getPiece(board, defenderPos);
+    if (!atk || !def || atk.owner === def.owner) return false;
+    if (atk.type === "rat" && def.type === "elephant") return true;
+    if (atk.type === "elephant" && def.type === "rat") return false;
+    return CT.RANK[atk.type] >= ctEffectiveRank(board, defenderPos);
+  }
+
+  function ctCanEnter(piece, dest) {
+    if (ctIsRiver(dest) && piece.type !== "rat") return false;
+    if (ctDenOwnerAt(dest) === piece.owner) return false; // can't enter your own den
+    return true;
+  }
+
+  CT.getLegalMoves = function (board, point) {
+    const piece = getPiece(board, point);
+    if (!piece) return [];
+    const moves = [];
+    const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+    for (const d of dirs) {
+      const dest = {x:point.x+d.dx, y:point.y+d.dy};
+      if (!ctInBounds(dest) || !ctCanEnter(piece, dest)) continue;
+      const occ = getPiece(board, dest);
+      if (!occ) moves.push({ to: dest, capture: false });
+      else if (occ.owner !== piece.owner && ctCanCapture(board, point, dest)) moves.push({ to: dest, capture: true });
+    }
+    if (piece.type === "lion" || piece.type === "tiger") {
+      for (const line of CT_JUMP_LINES) {
+        let dest = null, through = null;
+        if (samePoint(line.a, point)) { dest = line.b; through = line.through; }
+        else if (samePoint(line.b, point)) { dest = line.a; through = line.through; }
+        if (!dest) continue;
+        const blocked = through.some(t => { const o = getPiece(board, t); return o && o.type === "rat"; });
+        if (blocked || !ctCanEnter(piece, dest)) continue;
+        const occ = getPiece(board, dest);
+        if (!occ) moves.push({ to: dest, capture: false, jump: true });
+        else if (occ.owner !== piece.owner && ctCanCapture(board, point, dest)) moves.push({ to: dest, capture: true, jump: true });
+      }
+    }
+    return moves;
+  };
+
+  CT.applyMove = function (board, from, to) {
+    const piece = getPiece(board, from);
+    const capturedPiece = getPiece(board, to);
+    setPiece(board, to, piece);
+    setPiece(board, from, null);
+    const wonByDen = ctDenOwnerAt(to) === CT.other(piece.owner);
+    return { captured: capturedPiece ? to : null, wonByDen };
+  };
+
+  CT.checkWinner = function (board, turnPlayer) {
+    const pieces = ctGetPiecesOf(board, turnPlayer);
+    if (pieces.length === 0) return CT.other(turnPlayer);
+    const hasMove = pieces.some(p => CT.getLegalMoves(board, p).length > 0);
+    if (!hasMove) return CT.other(turnPlayer);
+    return null;
+  };
+
+  CT.evaluateMove = function (board, from, mv, side) {
+    const to = mv.to;
+    const targetPiece = getPiece(board, to);
+    let score = 0;
+    if (targetPiece) score += CT.RANK[targetPiece.type] * 20;
+    if (ctDenOwnerAt(to) === CT.other(side)) score += 100000;
+    const after = cloneBoard(board);
+    CT.applyMove(after, from, to);
+    const opp = CT.other(side);
+    let danger = 0;
+    for (const op of ctGetPiecesOf(after, opp)) {
+      for (const omv of CT.getLegalMoves(after, op)) {
+        if (samePoint(omv.to, to) && omv.capture) danger = Math.max(danger, CT.RANK[getPiece(after,to).type]);
+      }
+    }
+    score -= danger * 15;
+    const denPos = CT_DEN[opp];
+    const distBefore = Math.abs(from.x-denPos.x) + Math.abs(from.y-denPos.y);
+    const distAfter = Math.abs(to.x-denPos.x) + Math.abs(to.y-denPos.y);
+    score += (distBefore - distAfter) * 2;
+    return score;
+  };
+
+  CT.chooseAIMove = function (board, side) {
+    const pieces = ctGetPiecesOf(board, side);
+    const candidates = [];
+    for (const p of pieces) {
+      for (const mv of CT.getLegalMoves(board, p)) {
+        candidates.push({ from: p, to: mv.to, score: CT.evaluateMove(board, p, mv, side) });
+      }
+    }
+    if (candidates.length === 0) return null;
+    candidates.sort((a,b) => b.score - a.score);
+    const best = candidates[0].score;
+    const top = candidates.filter(c => c.score >= best - 0.01);
+    return top[Math.floor(Math.random() * top.length)];
+  };
+
+
   const GAMES = {
     kap: {
       key: "kap", title: "Kings & Pawns",
@@ -740,6 +900,14 @@
       firstTurn: "white",
       rulesNote: "Pieces move one step forward (diagonal or straight). Capture by jumping over an adjacent enemy into the empty point beyond. Captures are <b>mandatory</b> and chain into multi-jumps. Reaching the far row promotes a piece to <b>King</b>, which can move and capture in any direction.",
       colors: { a: "var(--white-pc)", aGlow: "var(--white-glow)", b: "var(--black-pc)", bGlow: "var(--black-glow)" }
+    },
+    cothu: {
+      key: "cothu", title: "Cờ Thú",
+      sideA: { key: "top", label: "Top" }, sideB: { key: "bottom", label: "Bottom" },
+      firstTurn: "top",
+      rulesNote: "8 ranked animals (Rat &lt; Cat &lt; Dog &lt; Wolf &lt; Leopard &lt; Tiger &lt; Lion &lt; Elephant). A piece captures any enemy of equal or lower rank &mdash; except the <b>Rat can capture the Elephant</b> (but not vice versa). Only the Rat may enter the river; Lion and Tiger can leap across it (blocked if a Rat sits in the water). Landing on an enemy trap (next to their own den) drops a piece's rank to 0. <b>Win by marching any piece into the opponent's den.</b>",
+      colors: { a: "var(--king)", aGlow: "var(--king-glow)", b: "var(--pawn)", bGlow: "var(--pawn-glow)" },
+      isGrid: true
     }
   };
 
@@ -758,6 +926,7 @@
   const ROOM_PREFIX = "kap-";
   let ckChainOrigin = null;
   let ckChainSteps = [];
+  let lastCtWinWasDen = false;
 
   function G() { return GAMES[activeGame]; }
   function otherSide(side) { return activeGame === "kap" ? KAP.other(side) : CK.other(side); }
@@ -796,6 +965,133 @@
   svg.appendChild(dotLayer);
   svg.appendChild(pieceLayer);
   svg.appendChild(hitLayer);
+
+  // ---- Cờ Thú (grid) rendering layers, coexisting with the lattice layers above ----
+  const CT_CELL = 58, CT_PAD_X = 12, CT_PAD_Y = 12;
+  const CT_VIEW_W = CT_COLS * CT_CELL + CT_PAD_X * 2;
+  const CT_VIEW_H = CT_ROWS * CT_CELL + CT_PAD_Y * 2;
+  function ctCoordX(col) { return CT_PAD_X + col * CT_CELL + CT_CELL / 2; }
+  function ctCoordY(row) { return CT_PAD_Y + row * CT_CELL + CT_CELL / 2; }
+
+  const ctTerrainLayer = document.createElementNS(NS, "g");
+  const ctGridLayer = document.createElementNS(NS, "g");
+  const ctPieceLayer = document.createElementNS(NS, "g");
+  const ctHitLayer = document.createElementNS(NS, "g");
+  svg.appendChild(ctTerrainLayer);
+  svg.appendChild(ctGridLayer);
+  svg.appendChild(ctPieceLayer);
+  svg.appendChild(ctHitLayer);
+
+  const ctPointEls = {};
+  let ctBoardBuilt = false;
+
+  function setBoardMode(isGrid) {
+    const latDisplay = isGrid ? "none" : "";
+    const ctDisplay = isGrid ? "" : "none";
+    lineLayer.style.display = latDisplay; dotLayer.style.display = latDisplay;
+    pieceLayer.style.display = latDisplay; hitLayer.style.display = latDisplay;
+    ctTerrainLayer.style.display = ctDisplay; ctGridLayer.style.display = ctDisplay;
+    ctPieceLayer.style.display = ctDisplay; ctHitLayer.style.display = ctDisplay;
+    svg.setAttribute("viewBox", isGrid ? `0 0 ${CT_VIEW_W} ${CT_VIEW_H}` : "0 0 450 450");
+    if (isGrid && !ctBoardBuilt) { buildCoThuBoard(); ctBoardBuilt = true; }
+  }
+
+  function buildCoThuBoard() {
+    for (const p of ctAllPoints()) {
+      const x = CT_PAD_X + p.x * CT_CELL, y = CT_PAD_Y + p.y * CT_CELL;
+      const rect = document.createElementNS(NS, "rect");
+      rect.setAttribute("x", x); rect.setAttribute("y", y);
+      rect.setAttribute("width", CT_CELL); rect.setAttribute("height", CT_CELL);
+      let fill = "transparent";
+      if (ctIsRiver(p)) fill = "rgba(79,143,209,0.35)";
+      else if (ctDenOwnerAt(p)) fill = "rgba(217,151,63,0.45)";
+      else if (ctTrapOwnerAt(p)) fill = "rgba(224,122,74,0.3)";
+      rect.setAttribute("fill", fill);
+      ctTerrainLayer.appendChild(rect);
+
+      const border = document.createElementNS(NS, "rect");
+      border.setAttribute("x", x); border.setAttribute("y", y);
+      border.setAttribute("width", CT_CELL); border.setAttribute("height", CT_CELL);
+      border.setAttribute("fill", "none");
+      border.setAttribute("stroke", "var(--line-dim)");
+      border.setAttribute("stroke-width", "1.5");
+      ctGridLayer.appendChild(border);
+
+      const hit = document.createElementNS(NS, "rect");
+      hit.setAttribute("x", x); hit.setAttribute("y", y);
+      hit.setAttribute("width", CT_CELL); hit.setAttribute("height", CT_CELL);
+      hit.setAttribute("fill", "transparent");
+      hit.setAttribute("class", "point-hit");
+      hit.addEventListener("click", () => onPointClicked(p));
+      ctHitLayer.appendChild(hit);
+
+      ctPointEls[p.x+","+p.y] = { hit, pieceGroup: null };
+    }
+  }
+
+  function ctMakePieceShape(piece) {
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "piece-group");
+    const disc = document.createElementNS(NS, "circle");
+    disc.setAttribute("cx", 0); disc.setAttribute("cy", 0); disc.setAttribute("r", 22);
+    disc.setAttribute("class", piece.owner === "top" ? "ck-white" : "ck-black");
+    disc.style.fill = piece.owner === "top" ? "var(--king)" : "var(--pawn)";
+    g.appendChild(disc);
+    const label = document.createElementNS(NS, "text");
+    label.setAttribute("x", 0); label.setAttribute("y", 1);
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("dominant-baseline", "central");
+    label.setAttribute("font-family", "Cinzel, serif");
+    label.setAttribute("font-weight", "700");
+    label.setAttribute("font-size", "20");
+    label.setAttribute("fill", piece.owner === "top" ? "#1c130a" : "#0c1420");
+    label.textContent = CT.LETTER[piece.type];
+    g.appendChild(label);
+    return g;
+  }
+
+  function ctPlaceGroupAt(group, point, animate) {
+    const cx = ctCoordX(point.x), cy = ctCoordY(point.y);
+    group.style.transition = animate ? "transform 0.28s ease" : "none";
+    group.style.transform = `translate(${cx}px, ${cy}px)`;
+  }
+
+  function ctSyncPieces() {
+    for (const p of ctAllPoints()) {
+      const key = p.x+","+p.y;
+      const entry = ctPointEls[key];
+      if (entry.pieceGroup) { ctPieceLayer.removeChild(entry.pieceGroup); entry.pieceGroup = null; }
+      const piece = getPiece(board, p);
+      if (!piece) continue;
+      const group = ctMakePieceShape(piece);
+      ctPlaceGroupAt(group, p, false);
+      ctPieceLayer.appendChild(group);
+      entry.pieceGroup = group;
+    }
+  }
+
+  function ctAnimateMove(from, to) {
+    const fromEntry = ctPointEls[from.x+","+from.y];
+    const toEntry = ctPointEls[to.x+","+to.y];
+    const group = fromEntry.pieceGroup;
+    fromEntry.pieceGroup = null;
+    if (!group) return;
+    if (toEntry.pieceGroup) { ctPieceLayer.removeChild(toEntry.pieceGroup); toEntry.pieceGroup = null; }
+    toEntry.pieceGroup = group;
+    ctPlaceGroupAt(group, to, true);
+  }
+
+  function ctAnimateCapture(at) {
+    const entry = ctPointEls[at.x+","+at.y];
+    const group = entry.pieceGroup;
+    entry.pieceGroup = null;
+    if (!group) return;
+    group.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+    group.style.opacity = "0";
+    const cx = ctCoordX(at.x), cy = ctCoordY(at.y);
+    group.style.transform = `translate(${cx}px, ${cy}px) scale(0.2)`;
+    setTimeout(() => { if (group.parentNode) ctPieceLayer.removeChild(group); }, 260);
+  }
 
   function buildStaticLines() {
     const lines = [];
@@ -974,13 +1270,19 @@
   }
 
   function currentLegalPlain(point) {
-    return activeGame === "kap" ? KAP.getLegalMoves(board, point) : CK.getPlainMoves(board, point);
+    if (activeGame === "kap") return KAP.getLegalMoves(board, point);
+    if (activeGame === "checkers") return CK.getPlainMoves(board, point);
+    return CT.getLegalMoves(board, point).filter(m => !m.capture).map(m => m.to);
   }
   function currentLegalCaptures(point) {
-    return activeGame === "kap" ? [] : CK.getCaptures(board, point);
+    if (activeGame === "kap") return [];
+    if (activeGame === "checkers") return CK.getCaptures(board, point);
+    return CT.getLegalMoves(board, point).filter(m => m.capture).map(m => ({ landing: m.to }));
   }
 
   function refreshHighlights() {
+    if (activeGame === "cothu") { ctRefreshHighlights(); return; }
+
     let plainDests = [], captureDests = [];
     if (selected) {
       plainDests = currentLegalPlain(selected);
@@ -1013,6 +1315,40 @@
     }
   }
 
+  function ctRefreshHighlights() {
+    let dests = [];
+    if (selected) dests = CT.getLegalMoves(board, selected).map(m => m.to);
+    const humanTurn = isHumanTurn();
+
+    for (const p of ctAllPoints()) {
+      const entry = ctPointEls[p.x+","+p.y];
+      const isSelected = selected && samePoint(selected, p);
+      const isDest = dests.some(m => samePoint(m, p));
+      entry.hit.classList.remove("legal-marker");
+      if (entry._marker) { entry.hit.parentNode && ctHitLayer.removeChild(entry._marker); entry._marker = null; }
+      if (isSelected || isDest) {
+        const marker = document.createElementNS(NS, "circle");
+        marker.setAttribute("cx", ctCoordX(p.x));
+        marker.setAttribute("cy", ctCoordY(p.y));
+        marker.setAttribute("r", isSelected ? 27 : 8);
+        marker.setAttribute("fill", isSelected ? "none" : "var(--legal)");
+        marker.setAttribute("stroke", isSelected ? "var(--selected)" : "none");
+        marker.setAttribute("stroke-width", "3");
+        marker.style.pointerEvents = "none";
+        ctHitLayer.insertBefore(marker, entry.hit);
+        entry._marker = marker;
+      }
+
+      const piece = getPiece(board, p);
+      let clickable = !isGameOver && humanTurn;
+      if (clickable) {
+        if (piece && piece.owner === currentTurn) clickable = true;
+        else clickable = isDest;
+      }
+      entry.hit.classList.toggle("clickable", !!clickable);
+    }
+  }
+
   function updateStatus() {
     const g = G();
     const aLabel = g.sideA.label, bLabel = g.sideB.label;
@@ -1023,9 +1359,12 @@
 
     if (activeGame === "kap") {
       pieceCountLabel.textContent = KAP.countPawns(board) + " pawns";
-    } else {
+    } else if (activeGame === "checkers") {
       const w = getPiecesOf(board, "white").length, bl = getPiecesOf(board, "black").length;
       pieceCountLabel.textContent = "White " + w + " \u2013 Black " + bl;
+    } else {
+      const t = ctGetPiecesOf(board, "top").length, bo = ctGetPiecesOf(board, "bottom").length;
+      pieceCountLabel.textContent = "Top " + t + " \u2013 Bottom " + bo;
     }
   }
 
@@ -1055,13 +1394,41 @@
     const isA = winner === g.sideA.key;
     overlayTitle.textContent = (isA ? g.sideA.label : g.sideB.label) + " Wins!";
     overlayTitle.className = isA ? "a-win" : "b-win";
-    overlaySubtitle.textContent = activeGame === "kap"
-      ? (winner === "king" ? "All pawns have been captured." : "Both Kings are trapped with no legal move.")
-      : "The opponent has no pieces or moves left.";
+    if (activeGame === "kap") {
+      overlaySubtitle.textContent = winner === "king" ? "All pawns have been captured." : "Both Kings are trapped with no legal move.";
+    } else if (activeGame === "checkers") {
+      overlaySubtitle.textContent = "The opponent has no pieces or moves left.";
+    } else {
+      overlaySubtitle.textContent = lastCtWinWasDen
+        ? "A piece marched straight into the enemy den!"
+        : "The opponent has no pieces or moves left.";
+    }
   }
 
   // ================= Online networking =================
-  /*function setOnlineStatus(text, cls) {
+  // Fill these in with your free Metered.ca (https://www.metered.ca/tools/openrelay/)
+  // subdomain + API key to enable TURN relay for connections across strict NATs/firewalls.
+  // Without these, only STUN is used, which fails for some cross-network connections.
+  const TURN_CONFIG = {
+    meteredSubdomain: "", // e.g. "myproject" (becomes myproject.metered.live)
+    meteredApiKey: ""
+  };
+  const STUN_FALLBACK = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" }
+  ];
+  async function getIceServers() {
+    if (!TURN_CONFIG.meteredSubdomain || !TURN_CONFIG.meteredApiKey) return STUN_FALLBACK;
+    try {
+      const res = await fetch(`https://${TURN_CONFIG.meteredSubdomain}.metered.live/api/v1/turn/credentials?apiKey=${TURN_CONFIG.meteredApiKey}`);
+      const servers = await res.json();
+      return (Array.isArray(servers) && servers.length) ? servers : STUN_FALLBACK;
+    } catch (e) {
+      return STUN_FALLBACK;
+    }
+  }
+
+  function setOnlineStatus(text, cls) {
     onlineStatus.textContent = text || "";
     onlineStatus.className = "online-status" + (cls ? " " + cls : "");
   }
@@ -1075,13 +1442,14 @@
     if (peer) { try { peer.destroy(); } catch (e) {} }
     peer = null; conn = null;
   }
-  function createRoom() {
+  async function createRoom() {
     teardownConnection();
     isHost = true;
     const code = randomRoomCode(4);
     roomCodeDisplay.style.display = "none";
     setOnlineStatus("Creating room\u2026");
-    peer = new Peer(ROOM_PREFIX + code.toLowerCase());
+    const iceServers = await getIceServers();
+    peer = new Peer(ROOM_PREFIX + code.toLowerCase(), { config: { iceServers } });
     peer.on("open", () => {
       roomCodeDisplay.style.display = "block";
       roomCodeDisplay.textContent = code;
@@ -1090,13 +1458,14 @@
     peer.on("connection", incoming => { conn = incoming; setupConnection(); });
     peer.on("error", err => setOnlineStatus("Connection error (" + err.type + "). Try creating a new room.", "error"));
   }
-  function joinRoom(codeRaw) {
+  async function joinRoom(codeRaw) {
     const code = (codeRaw || "").trim().toLowerCase();
     if (!code) { setOnlineStatus("Enter a room code first.", "error"); return; }
     teardownConnection();
     isHost = false;
     setOnlineStatus("Connecting\u2026");
-    peer = new Peer();
+    const iceServers = await getIceServers();
+    peer = new Peer({ config: { iceServers } });
     peer.on("open", () => {
       conn = peer.connect(ROOM_PREFIX + code, { reliable: true });
       setupConnection();
@@ -1139,6 +1508,11 @@
       });
     } else if (msg.type === "restart") {
       resetBoardLocal();
+    } else if (msg.type === "ctMove") {
+      const result = CT.applyMove(board, msg.from, msg.to);
+      ctAnimateMove(msg.from, msg.to);
+      if (result.captured) ctAnimateCapture(result.captured);
+      finishCoThuTurn({ broadcast: false, wonByDen: result.wonByDen, mover: currentTurn });
     }
   }
   function beginOnlineGame() {
@@ -1147,297 +1521,14 @@
     applyThemeColors();
     updateSubtitle();
     resetBoardLocal();
-  }*/
-  // ==========================
-// Online Networking v2
-// ==========================
-
-const PEER_CONFIG = {
-    host: "0.peerjs.com",
-    port: 443,
-    secure: true,
-    debug: 2,
-
-    config: {
-        iceServers: [
-            {
-                urls: [
-                    "stun:stun.l.google.com:19302",
-                    "stun:stun1.l.google.com:19302",
-                    "stun:stun2.l.google.com:19302"
-                ]
-            },
-            {
-                urls: [
-                    "turn:openrelay.metered.ca:80",
-                    "turn:openrelay.metered.ca:443",
-                    "turn:openrelay.metered.ca:443?transport=tcp"
-                ],
-                username: "openrelayproject",
-                credential: "openrelayproject"
-            }
-        ]
-    }
-};
-
-function setOnlineStatus(text, cls = "") {
-    onlineStatus.textContent = text || "";
-    onlineStatus.className = "online-status" + (cls ? " " + cls : "");
-}
-
-function randomRoomCode(length = 6) {
-
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-    let result = "";
-
-    for (let i = 0; i < length; i++) {
-
-        result += chars[Math.floor(Math.random() * chars.length)];
-
-    }
-
-    return result;
-}
-
-function teardownConnection() {
-
-    if (conn) {
-
-        try {
-
-            conn.close();
-
-        } catch {}
-
-    }
-
-    if (peer) {
-
-        try {
-
-            peer.destroy();
-
-        } catch {}
-
-    }
-
-    conn = null;
-    peer = null;
-}
-
-function createRoom() {
-
-    teardownConnection();
-
-    isHost = true;
-
-    const roomCode = randomRoomCode();
-
-    roomCodeDisplay.style.display = "none";
-
-    setOnlineStatus("Creating room...");
-
-    peer = new Peer(
-        ROOM_PREFIX + roomCode.toLowerCase(),
-        PEER_CONFIG
-    );
-
-    peer.on("open", id => {
-
-        console.log("Host Peer ID:", id);
-
-        roomCodeDisplay.style.display = "block";
-        roomCodeDisplay.textContent = roomCode;
-
-        setOnlineStatus("Waiting for player...", "success");
-
-    });
-
-    peer.on("connection", incoming => {
-
-        console.log("Incoming connection");
-
-        conn = incoming;
-
-        setupConnection();
-
-    });
-
-    peer.on("disconnected", () => {
-
-        console.log("Peer disconnected");
-
-        setOnlineStatus("Reconnecting...");
-
-        peer.reconnect();
-
-    });
-
-    peer.on("close", () => {
-
-        console.log("Peer closed");
-
-    });
-
-    peer.on("error", err => {
-
-        console.error(err);
-
-        setOnlineStatus(
-            "Peer Error : " + err.type,
-            "error"
-        );
-
-    });
-}
-
-function joinRoom(codeRaw) {
-
-    const roomCode = codeRaw.trim().toLowerCase();
-
-    if (!roomCode) {
-
-        setOnlineStatus(
-            "Please enter room code.",
-            "error"
-        );
-
-        return;
-
-    }
-
-    teardownConnection();
-
-    isHost = false;
-
-    setOnlineStatus("Connecting...");
-
-    peer = new Peer(undefined, PEER_CONFIG);
-
-    peer.on("open", id => {
-
-        console.log("Client Peer ID:", id);
-
-        conn = peer.connect(
-            ROOM_PREFIX + roomCode,
-            {
-                reliable: true,
-                serialization: "json"
-            }
-        );
-
-        setupConnection();
-
-    });
-
-    peer.on("error", err => {
-
-        console.error(err);
-
-        setOnlineStatus(
-            "Connection Failed",
-            "error"
-        );
-
-    });
-}
-
-function setupConnection() {
-
-    if (!conn) return;
-
-    conn.on("open", () => {
-
-        console.log("Connected");
-
-        setOnlineStatus(
-            "Connected!",
-            "success"
-        );
-
-        if (isHost) {
-
-            conn.send({
-
-                type: "assignSide",
-
-                game: activeGame,
-
-                side: otherSide(humanSide)
-
-            });
-
-            beginOnlineGame();
-
-        }
-
-    });
-
-    conn.on("data", data => {
-
-        console.log("Receive:", data);
-
-        onData(data);
-
-    });
-
-    conn.on("close", () => {
-
-        console.log("Connection closed");
-
-        setOnlineStatus(
-            "Friend disconnected.",
-            "error"
-        );
-
-    });
-
-    conn.on("error", err => {
-
-        console.error(err);
-
-        setOnlineStatus(
-            "Network Error",
-            "error"
-        );
-
-    });
-
-    setTimeout(() => {
-
-        if (!conn.open) {
-
-            setOnlineStatus(
-                "Connection Timeout",
-                "error"
-            );
-
-        }
-
-    }, 15000);
-
-}
-
-function beginOnlineGame() {
-
-    mode = "online";
-
-    startScreen.classList.remove("show");
-
-    applyThemeColors();
-
-    updateSubtitle();
-
-    resetBoardLocal();
-
-}
+  }
 
   // ================= Interaction: dispatch by active game =================
   function onPointClicked(p) {
     if (isGameOver || !isHumanTurn()) return;
     if (activeGame === "kap") onKapPointClicked(p);
-    else onCheckersPointClicked(p);
+    else if (activeGame === "checkers") onCheckersPointClicked(p);
+    else onCoThuPointClicked(p);
   }
 
   // ---- Kings & Pawns interaction ----
@@ -1552,6 +1643,55 @@ function beginOnlineGame() {
     const winner = CK.checkWinner(board, currentTurn);
     if (winner) {
       isGameOver = true; updateStatus(); refreshHighlights();
+      setTimeout(() => showGameOver(winner), 300);
+      return;
+    }
+    updateStatus(); refreshHighlights();
+    if (mode === "ai") maybeTriggerAI();
+  }
+
+  // ---- Cờ Thú interaction ----
+  function onCoThuPointClicked(p) {
+    if (selected) {
+      const moves = CT.getLegalMoves(board, selected);
+      const match = moves.find(m => samePoint(m.to, p));
+      if (match) { performCoThuMove(selected, p); return; }
+
+      const clicked = getPiece(board, p);
+      if (clicked && clicked.owner === currentTurn) { selected = p; refreshHighlights(); return; }
+      selected = null; refreshHighlights();
+      return;
+    }
+    const piece = getPiece(board, p);
+    if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); }
+  }
+
+  function performCoThuMove(from, to) {
+    const result = CT.applyMove(board, from, to);
+    selected = null;
+    ctAnimateMove(from, to);
+    if (result.captured) ctAnimateCapture(result.captured);
+    finishCoThuTurn({ broadcast: true, from, to, wonByDen: result.wonByDen, mover: currentTurn });
+  }
+
+  function finishCoThuTurn(opts) {
+    opts = opts || {};
+    if (mode === "online" && opts.broadcast && conn && conn.open) {
+      conn.send({ type: "ctMove", from: opts.from, to: opts.to });
+    }
+    if (opts.wonByDen) {
+      isGameOver = true;
+      lastCtWinWasDen = true;
+      updateStatus(); refreshHighlights();
+      setTimeout(() => showGameOver(opts.mover), 300);
+      return;
+    }
+    currentTurn = CT.other(currentTurn);
+    const winner = CT.checkWinner(board, currentTurn);
+    if (winner) {
+      isGameOver = true;
+      lastCtWinWasDen = false;
+      updateStatus(); refreshHighlights();
       setTimeout(() => showGameOver(winner), 300);
       return;
     }
