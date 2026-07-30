@@ -303,12 +303,15 @@
       <div class="game-pick-row">
         <button class="game-pick-btn" data-game="kap">
           <strong data-i18n="gcKapTitle">Kings &amp; Pawns</strong>
+          <span data-i18n="gcKapDesc">2 Kings hunt 14 Pawns. Kings capture by sandwiching pawns; Pawns win by trapping both Kings.</span>
         </button>
         <button class="game-pick-btn" data-game="checkers">
           <strong data-i18n="gcCheckersTitle">Checkers</strong>
+          <span data-i18n="gcCheckersDesc">Classic jump-capture checkers, adapted to this board's diagonal + straight lines. Forced captures, multi-jumps, promotion.</span>
         </button>
         <button class="game-pick-btn" data-game="cothu">
           <strong data-i18n="gcCothuTitle">Cờ Thú (Jungle Chess)</strong>
+          <span data-i18n="gcCothuDesc">Vietnamese animal chess on its own 7×9 board: rank-based captures, river, traps, and a Rat that can take down an Elephant. Win by reaching the enemy den.</span>
         </button>
       </div>
     </div>
@@ -387,11 +390,11 @@
       chooseGameTitle: "Choose a Game",
       chooseGameSubtitle: "Pick a game below.",
       gcKapTitle: "Kings & Pawns",
-      
+      gcKapDesc: "2 Kings hunt 14 Pawns. Kings capture by sandwiching pawns; Pawns win by trapping both Kings.",
       gcCheckersTitle: "Checkers",
-      
+      gcCheckersDesc: "Classic jump-capture checkers, adapted to this board's diagonal + straight lines. Forced captures, multi-jumps, promotion.",
       gcCothuTitle: "C\u1edd Th\u00fa (Jungle Chess)",
-      
+      gcCothuDesc: "Vietnamese animal chess on its own 7\u00d79 board: rank-based captures, river, traps, and a Rat that can take down an Elephant. Win by reaching the enemy den.",
       modeScreenSubtitle: "Choose your side and opponent",
       playAsLabel: "Play as",
       opponentLabel: "Opponent",
@@ -425,7 +428,9 @@
       connectionErrorCreate: (type) => `Connection error (${type}). Try creating a new room.`,
       connectionErrorJoin: (type) => `Connection error (${type}). Check the code and try again.`,
       enterRoomCodeFirst: "Enter a room code first.",
-      connecting: "Connecting\u2026"
+      connecting: "Connecting\u2026",
+      stillWaitingHint: "Still waiting after 30s \u2014 make sure your friend has the right room code and a stable connection.",
+      connectTimeoutJoin: "Couldn't connect within 20 seconds. This usually means a firewall or VPN is blocking the connection. Try a different network, turn off any VPN, or try again."
     },
     vi: {
       appTitle: "Tr\u00f2 Ch\u01a1i C\u1edd",
@@ -436,7 +441,7 @@
       chooseGameSubtitle: "Ch\u1ecdn m\u1ed9t tr\u00f2 ch\u01a1i b\u00ean d\u01b0\u1edbi.",
       gcKapTitle: "Vua & T\u1ed1t",
       gcKapDesc: "2 Vua s\u0103n 14 T\u1ed1t. Vua \u0103n qu\u00e2n b\u1eb1ng c\u00e1ch k\u1eb9p T\u1ed1t gi\u1eefa hai b\u00ean; T\u1ed1t th\u1eafng b\u1eb1ng c\u00e1ch d\u1ed3n c\u1ea3 hai Vua v\u00e0o th\u1ebf b\u00ed.",
-      gcCheckersTitle: "Cờ nhào",
+      gcCheckersTitle: "C\u1edd \u0110am",
       gcCheckersDesc: "C\u1edd \u0111am nh\u1ea3y \u0103n qu\u00e2n truy\u1ec1n th\u1ed1ng, chuy\u1ec3n th\u1ec3 sang \u0111\u01b0\u1eddng ch\u00e9o v\u00e0 \u0111\u01b0\u1eddng th\u1eb3ng c\u1ee7a b\u00e0n c\u1edd n\u00e0y. \u0102n qu\u00e2n b\u1eaft bu\u1ed9c, \u0103n li\u00ean ho\u00e0n, phong V\u01b0\u01a1ng.",
       gcCothuTitle: "C\u1edd Th\u00fa",
       gcCothuDesc: "C\u1edd th\u00fa Vi\u1ec7t Nam tr\u00ean b\u00e0n c\u1edd ri\u00eang 7\u00d79: \u0103n qu\u00e2n theo h\u1ea1ng, c\u00f3 s\u00f4ng, c\u00f3 b\u1eaby, v\u00e0 Chu\u1ed9t c\u00f3 th\u1ec3 h\u1ea1 g\u1ee5c Voi. Th\u1eafng b\u1eb1ng c\u00e1ch v\u00e0o chu\u1ed3ng \u0111\u1ed1i ph\u01b0\u01a1ng.",
@@ -473,7 +478,9 @@
       connectionErrorCreate: (type) => `L\u1ed7i k\u1ebft n\u1ed1i (${type}). H\u00e3y t\u1ea1o ph\u00f2ng m\u1edbi.`,
       connectionErrorJoin: (type) => `L\u1ed7i k\u1ebft n\u1ed1i (${type}). Ki\u1ec3m tra m\u00e3 ph\u00f2ng v\u00e0 th\u1eed l\u1ea1i.`,
       enterRoomCodeFirst: "Vui l\u00f2ng nh\u1eadp m\u00e3 ph\u00f2ng.",
-      connecting: "\u0110ang k\u1ebft n\u1ed1i\u2026"
+      connecting: "\u0110ang k\u1ebft n\u1ed1i\u2026",
+      stillWaitingHint: "V\u1eabn ch\u1edd sau 30 gi\u00e2y \u2014 h\u00e3y ki\u1ec3m tra b\u1ea1n c\u1ee7a b\u1ea1n c\u00f3 \u0111\u00fang m\u00e3 ph\u00f2ng v\u00e0 k\u1ebft n\u1ed1i \u1ed5n \u0111\u1ecbnh kh\u00f4ng.",
+      connectTimeoutJoin: "Kh\u00f4ng th\u1ec3 k\u1ebft n\u1ed1i sau 20 gi\u00e2y. Th\u01b0\u1eddng do t\u01b0\u1eddng l\u1eeda ho\u1eb7c VPN ch\u1eb7n k\u1ebft n\u1ed1i. H\u00e3y th\u1eed m\u1ea1ng kh\u00e1c, t\u1eaft VPN, ho\u1eb7c th\u1eed l\u1ea1i."
     }
   };
 
@@ -1587,7 +1594,13 @@
   function teardownConnection() {
     if (peer) { try { peer.destroy(); } catch (e) {} }
     peer = null; conn = null;
+    clearConnectTimeout();
   }
+  let connectTimeoutId = null;
+  function clearConnectTimeout() {
+    if (connectTimeoutId) { clearTimeout(connectTimeoutId); connectTimeoutId = null; }
+  }
+
   async function createRoom() {
     teardownConnection();
     isHost = true;
@@ -1600,9 +1613,17 @@
       roomCodeDisplay.style.display = "block";
       roomCodeDisplay.textContent = code;
       setOnlineStatus(t("waitingForFriend"));
+      clearConnectTimeout();
+      connectTimeoutId = setTimeout(() => {
+        if (!conn) setOnlineStatus(t("stillWaitingHint"), "error");
+      }, 30000);
     });
-    peer.on("connection", incoming => { conn = incoming; setupConnection(); });
-    peer.on("error", err => setOnlineStatus(t("connectionErrorCreate", err.type), "error"));
+    peer.on("connection", incoming => {
+      clearConnectTimeout();
+      conn = incoming;
+      setupConnection();
+    });
+    peer.on("error", err => { clearConnectTimeout(); setOnlineStatus(t("connectionErrorCreate", err.type), "error"); });
   }
   async function joinRoom(codeRaw) {
     const code = (codeRaw || "").trim().toLowerCase();
@@ -1615,11 +1636,40 @@
     peer.on("open", () => {
       conn = peer.connect(ROOM_PREFIX + code, { reliable: true });
       setupConnection();
+      clearConnectTimeout();
+      connectTimeoutId = setTimeout(() => {
+        if (!conn || !conn.open) {
+          setOnlineStatus(t("connectTimeoutJoin"), "error");
+          teardownConnection();
+        }
+      }, 20000);
     });
-    peer.on("error", err => setOnlineStatus(t("connectionErrorJoin", err.type), "error"));
+    peer.on("error", err => { clearConnectTimeout(); setOnlineStatus(t("connectionErrorJoin", err.type), "error"); });
   }
+
+  // Logs WebRTC ICE/connection state changes to the browser console (F12) —
+  // useful for diagnosing why a specific connection fails (blocked UDP/TCP,
+  // no TURN candidates gathered, etc.) without changing what the user sees.
+  function logIceDiagnostics() {
+    setTimeout(() => {
+      const pc = conn && conn.peerConnection;
+      if (!pc) return;
+      pc.addEventListener("iceconnectionstatechange", () => {
+        console.log("[WebRTC] ICE connection state:", pc.iceConnectionState);
+      });
+      pc.addEventListener("icegatheringstatechange", () => {
+        console.log("[WebRTC] ICE gathering state:", pc.iceGatheringState);
+      });
+      pc.addEventListener("connectionstatechange", () => {
+        console.log("[WebRTC] Connection state:", pc.connectionState);
+      });
+    }, 50);
+  }
+
   function setupConnection() {
+    logIceDiagnostics();
     conn.on("open", () => {
+      clearConnectTimeout();
       setOnlineStatus(t("connected"), "success");
       if (isHost) {
         conn.send({ type: "assignSide", game: activeGame, side: otherSide(humanSide) });
