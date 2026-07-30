@@ -258,12 +258,25 @@
     text-align: center;
   }
   .rules-note b { color: var(--text); }
+
+  .lang-toggle {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 20;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
 </style>
 </head>
 <body>
 
-  <h1 id="gameTitle">Board Games</h1>
-  <div class="subtitle" id="subtitle">Choose a game to begin.</div>
+  <button id="langToggle" class="lang-toggle">VI</button>
+
+  <h1 id="gameTitle" data-i18n="appTitle">Board Games</h1>
+  <div class="subtitle" id="subtitle" data-i18n="chooseGameToBegin">Choose a game to begin.</div>
 
   <div class="status-bar">
     <div class="status-item"><span class="status-dot a"></span><span id="turnLabel">Turn</span></div>
@@ -276,8 +289,8 @@
   </div>
 
   <div class="controls">
-    <button id="restartBtn">New Game</button>
-    <button id="changeModeBtn">Change Mode</button>
+    <button id="restartBtn" data-i18n="newGame">New Game</button>
+    <button id="changeModeBtn" data-i18n="changeMode">Change Mode</button>
   </div>
 
   <div class="rules-note" id="rulesNote"></div>
@@ -285,20 +298,17 @@
   <!-- Top-level game chooser -->
   <div class="overlay show" id="gameChoiceScreen">
     <div class="overlay-card">
-      <h2>Choose a Game</h2>
-      <p>Both are played on the same cross-line board.</p>
+      <h2 data-i18n="chooseGameTitle">Choose a Game</h2>
+      <p data-i18n="chooseGameSubtitle">Pick a game below.</p>
       <div class="game-pick-row">
         <button class="game-pick-btn" data-game="kap">
-          <strong>Kings &amp; Pawns</strong>
-          <span>2 Kings hunt 14 Pawns. Kings capture by sandwiching pawns; Pawns win by trapping both Kings.</span>
+          <strong data-i18n="gcKapTitle">Kings &amp; Pawns</strong>
         </button>
         <button class="game-pick-btn" data-game="checkers">
-          <strong>Checkers</strong>
-          <span>Classic jump-capture checkers, adapted to this board's diagonal + straight lines. Forced captures, multi-jumps, promotion.</span>
+          <strong data-i18n="gcCheckersTitle">Checkers</strong>
         </button>
         <button class="game-pick-btn" data-game="cothu">
-          <strong>Cờ Thú (Jungle Chess)</strong>
-          <span>Vietnamese animal chess on its own 7x9=63 board: rank-based captures, river, traps, and a Rat that can take down an Elephant. Win by reaching the enemy den.</span>
+          <strong data-i18n="gcCothuTitle">Cờ Thú (Jungle Chess)</strong>
         </button>
       </div>
     </div>
@@ -308,10 +318,10 @@
   <div class="overlay" id="startScreen">
     <div class="overlay-card">
       <h2 id="modeScreenTitle">Kings &amp; Pawns</h2>
-      <p>Choose your side and opponent</p>
+      <p data-i18n="modeScreenSubtitle">Choose your side and opponent</p>
 
       <div class="mode-group">
-        <div class="mode-label">Play as</div>
+        <div class="mode-label" data-i18n="playAsLabel">Play as</div>
         <div class="mode-buttons" id="sideButtons">
           <button data-value="a" class="mode-btn active">King</button>
           <button data-value="b" class="mode-btn">Pawn</button>
@@ -319,35 +329,35 @@
       </div>
 
       <div class="mode-group">
-        <div class="mode-label">Opponent</div>
+        <div class="mode-label" data-i18n="opponentLabel">Opponent</div>
         <div class="mode-buttons" id="opponentButtons">
-          <button data-value="ai" class="mode-btn active">AI</button>
-          <button data-value="player" class="mode-btn">Local Player (2P)</button>
-          <button data-value="online" class="mode-btn">Online</button>
+          <button data-value="ai" class="mode-btn active" data-i18n="aiBtn">AI</button>
+          <button data-value="player" class="mode-btn" data-i18n="localBtn">Local Player (2P)</button>
+          <button data-value="online" class="mode-btn" data-i18n="onlineBtn">Online</button>
         </div>
       </div>
 
       <div class="mode-group" id="onlinePanel" style="display:none;">
         <div class="mode-buttons" id="onlineTabButtons" style="margin-bottom:10px;">
-          <button data-value="create" class="mode-btn active online-tab">Create Room</button>
-          <button data-value="join" class="mode-btn online-tab">Join Room</button>
+          <button data-value="create" class="mode-btn active online-tab" data-i18n="createRoomBtn">Create Room</button>
+          <button data-value="join" class="mode-btn online-tab" data-i18n="joinRoomBtn">Join Room</button>
         </div>
 
         <div id="createTab">
-          <button id="createRoomBtn" class="start-btn" style="margin-top:0;">Create Room</button>
+          <button id="createRoomBtn" class="start-btn" style="margin-top:0;" data-i18n="createRoomBtn">Create Room</button>
           <div id="roomCodeDisplay" class="room-code" style="display:none;"></div>
         </div>
 
         <div id="joinTab" style="display:none;">
-          <input id="joinCodeInput" class="room-input" placeholder="Enter room code" maxlength="6" autocapitalize="characters">
-          <button id="joinRoomBtn" class="start-btn" style="margin-top:8px;">Join Room</button>
+          <input id="joinCodeInput" class="room-input" data-i18n-placeholder="roomCodePlaceholder" placeholder="Enter room code" maxlength="6" autocapitalize="characters">
+          <button id="joinRoomBtn" class="start-btn" style="margin-top:8px;" data-i18n="joinRoomBtn">Join Room</button>
         </div>
 
         <div id="onlineStatus" class="online-status"></div>
       </div>
 
-      <button id="startBtn" class="start-btn">Start Game</button>
-      <div class="back-link" id="backToGameChoice">&larr; Choose a different game</div>
+      <button id="startBtn" class="start-btn" data-i18n="startGameBtn">Start Game</button>
+      <div class="back-link" id="backToGameChoice" data-i18n="backToGameChoice">&larr; Choose a different game</div>
     </div>
   </div>
 
@@ -356,14 +366,133 @@
     <div class="overlay-card">
       <h2 id="overlayTitle">Kings Win!</h2>
       <p id="overlaySubtitle">All pawns have been captured.</p>
-      <button id="overlayRestartBtn">Play Again</button>
-      <button id="overlayModeBtn" style="margin-top:8px;">Change Mode</button>
+      <button id="overlayRestartBtn" data-i18n="playAgainBtn">Play Again</button>
+      <button id="overlayModeBtn" style="margin-top:8px;" data-i18n="changeMode">Change Mode</button>
     </div>
   </div>
 
 <script>
 (function () {
   "use strict";
+
+  // ================= i18n (English / Vietnamese) =================
+  let lang = "en";
+
+  const I18N = {
+    en: {
+      appTitle: "Board Games",
+      chooseGameToBegin: "Choose a game to begin.",
+      newGame: "New Game",
+      changeMode: "Change Mode",
+      chooseGameTitle: "Choose a Game",
+      chooseGameSubtitle: "Pick a game below.",
+      gcKapTitle: "Kings & Pawns",
+      gcKapDesc: "2 Kings hunt 14 Pawns. Kings capture by sandwiching pawns; Pawns win by trapping both Kings.",
+      gcCheckersTitle: "Checkers",
+      gcCheckersDesc: "Classic jump-capture checkers, adapted to this board's diagonal + straight lines. Forced captures, multi-jumps, promotion.",
+      gcCothuTitle: "C\u1edd Th\u00fa (Jungle Chess)",
+      gcCothuDesc: "Vietnamese animal chess on its own 7\u00d79 board: rank-based captures, river, traps, and a Rat that can take down an Elephant. Win by reaching the enemy den.",
+      modeScreenSubtitle: "Choose your side and opponent",
+      playAsLabel: "Play as",
+      opponentLabel: "Opponent",
+      aiBtn: "AI",
+      localBtn: "Local Player (2P)",
+      onlineBtn: "Online",
+      createRoomBtn: "Create Room",
+      joinRoomBtn: "Join Room",
+      roomCodePlaceholder: "Enter room code",
+      startGameBtn: "Start Game",
+      backToGameChoice: "\u2190 Choose a different game",
+      playAgainBtn: "Play Again",
+      gameOver: "Game Over",
+      turnOf: (name) => `${name}'s Turn`,
+      pawnsCount: (n) => `${n} pawns`,
+      whiteBlackCount: (w,b) => `White ${w} \u2013 Black ${b}`,
+      topBottomCount: (t,b) => `Top ${t} \u2013 Bottom ${b}`,
+      winsSuffix: (name) => `${name} Wins!`,
+      kapWinAllPawns: "All pawns have been captured.",
+      kapWinTrapped: "Both Kings are trapped with no legal move.",
+      noMovesLeft: "The opponent has no pieces or moves left.",
+      cothuWinDen: "A piece marched straight into the enemy den!",
+      subtitleLocal: "Local 2-player \u2014 pass the device each turn.",
+      subtitleOnline: (name) => `Online match \u2014 you are ${name}.`,
+      subtitleAI: (name) => `You are ${name}. The machine plays the other side.`,
+      creatingRoom: "Creating room\u2026",
+      waitingForFriend: "Waiting for your friend to join\u2026",
+      connected: "Connected!",
+      friendDisconnected: "Your friend disconnected.",
+      connectionError: "Connection error.",
+      connectionErrorCreate: (type) => `Connection error (${type}). Try creating a new room.`,
+      connectionErrorJoin: (type) => `Connection error (${type}). Check the code and try again.`,
+      enterRoomCodeFirst: "Enter a room code first.",
+      connecting: "Connecting\u2026"
+    },
+    vi: {
+      appTitle: "Tr\u00f2 Ch\u01a1i C\u1edd",
+      chooseGameToBegin: "Ch\u1ecdn m\u1ed9t tr\u00f2 ch\u01a1i \u0111\u1ec3 b\u1eaft \u0111\u1ea7u.",
+      newGame: "V\u00e1n M\u1edbi",
+      changeMode: "\u0110\u1ed5i Ch\u1ebf \u0110\u1ed9",
+      chooseGameTitle: "Ch\u1ecdn Tr\u00f2 Ch\u01a1i",
+      chooseGameSubtitle: "Ch\u1ecdn m\u1ed9t tr\u00f2 ch\u01a1i b\u00ean d\u01b0\u1edbi.",
+      gcKapTitle: "Vua & T\u1ed1t",
+      gcKapDesc: "2 Vua s\u0103n 14 T\u1ed1t. Vua \u0103n qu\u00e2n b\u1eb1ng c\u00e1ch k\u1eb9p T\u1ed1t gi\u1eefa hai b\u00ean; T\u1ed1t th\u1eafng b\u1eb1ng c\u00e1ch d\u1ed3n c\u1ea3 hai Vua v\u00e0o th\u1ebf b\u00ed.",
+      gcCheckersTitle: "C\u1edd \u0110am",
+      gcCheckersDesc: "C\u1edd \u0111am nh\u1ea3y \u0103n qu\u00e2n truy\u1ec1n th\u1ed1ng, chuy\u1ec3n th\u1ec3 sang \u0111\u01b0\u1eddng ch\u00e9o v\u00e0 \u0111\u01b0\u1eddng th\u1eb3ng c\u1ee7a b\u00e0n c\u1edd n\u00e0y. \u0102n qu\u00e2n b\u1eaft bu\u1ed9c, \u0103n li\u00ean ho\u00e0n, phong V\u01b0\u01a1ng.",
+      gcCothuTitle: "C\u1edd Th\u00fa",
+      gcCothuDesc: "C\u1edd th\u00fa Vi\u1ec7t Nam tr\u00ean b\u00e0n c\u1edd ri\u00eang 7\u00d79: \u0103n qu\u00e2n theo h\u1ea1ng, c\u00f3 s\u00f4ng, c\u00f3 b\u1eaby, v\u00e0 Chu\u1ed9t c\u00f3 th\u1ec3 h\u1ea1 g\u1ee5c Voi. Th\u1eafng b\u1eb1ng c\u00e1ch v\u00e0o chu\u1ed3ng \u0111\u1ed1i ph\u01b0\u01a1ng.",
+      modeScreenSubtitle: "Ch\u1ecdn phe v\u00e0 \u0111\u1ed1i th\u1ee7",
+      playAsLabel: "Ch\u01a1i l\u00e0m",
+      opponentLabel: "\u0110\u1ed1i th\u1ee7",
+      aiBtn: "M\u00e1y",
+      localBtn: "2 Ng\u01b0\u1eddi (c\u00f9ng m\u00e1y)",
+      onlineBtn: "Tr\u1ef1c tuy\u1ebfn",
+      createRoomBtn: "T\u1ea1o Ph\u00f2ng",
+      joinRoomBtn: "V\u00e0o Ph\u00f2ng",
+      roomCodePlaceholder: "Nh\u1eadp m\u00e3 ph\u00f2ng",
+      startGameBtn: "B\u1eaft \u0110\u1ea7u",
+      backToGameChoice: "\u2190 Ch\u1ecdn tr\u00f2 ch\u01a1i kh\u00e1c",
+      playAgainBtn: "Ch\u01a1i L\u1ea1i",
+      gameOver: "K\u1ebft Th\u00fac",
+      turnOf: (name) => `L\u01b0\u1ee3t c\u1ee7a ${name}`,
+      pawnsCount: (n) => `${n} t\u1ed1t`,
+      whiteBlackCount: (w,b) => `Tr\u1eafng ${w} \u2013 \u0110en ${b}`,
+      topBottomCount: (t,b) => `Tr\u00ean ${t} \u2013 D\u01b0\u1edbi ${b}`,
+      winsSuffix: (name) => `${name} Th\u1eafng!`,
+      kapWinAllPawns: "T\u1ea5t c\u1ea3 t\u1ed1t \u0111\u00e3 b\u1ecb b\u1eaft.",
+      kapWinTrapped: "C\u1ea3 hai Vua \u0111\u1ec1u b\u1ecb ch\u1eb7n, kh\u00f4ng th\u1ec3 di chuy\u1ec3n.",
+      noMovesLeft: "\u0110\u1ed1i th\u1ee7 kh\u00f4ng c\u00f2n qu\u00e2n ho\u1eb7c n\u01b0\u1edbc \u0111i n\u00e0o.",
+      cothuWinDen: "M\u1ed9t qu\u00e2n \u0111\u00e3 ti\u1ebfn th\u1eb3ng v\u00e0o chu\u1ed3ng \u0111\u1ed1i ph\u01b0\u01a1ng!",
+      subtitleLocal: "2 ng\u01b0\u1eddi ch\u01a1i c\u00f9ng m\u00e1y \u2014 chuy\u1ec1n thi\u1ebft b\u1ecb m\u1ed7i l\u01b0\u1ee3t.",
+      subtitleOnline: (name) => `Tr\u1eadn tr\u1ef1c tuy\u1ebfn \u2014 b\u1ea1n l\u00e0 ${name}.`,
+      subtitleAI: (name) => `B\u1ea1n l\u00e0 ${name}. M\u00e1y ch\u01a1i phe c\u00f2n l\u1ea1i.`,
+      creatingRoom: "\u0110ang t\u1ea1o ph\u00f2ng\u2026",
+      waitingForFriend: "\u0110ang ch\u1edd b\u1ea1n c\u1ee7a b\u1ea1n v\u00e0o ph\u00f2ng\u2026",
+      connected: "\u0110\u00e3 k\u1ebft n\u1ed1i!",
+      friendDisconnected: "B\u1ea1n c\u1ee7a b\u1ea1n \u0111\u00e3 ng\u1eaft k\u1ebft n\u1ed1i.",
+      connectionError: "L\u1ed7i k\u1ebft n\u1ed1i.",
+      connectionErrorCreate: (type) => `L\u1ed7i k\u1ebft n\u1ed1i (${type}). H\u00e3y t\u1ea1o ph\u00f2ng m\u1edbi.`,
+      connectionErrorJoin: (type) => `L\u1ed7i k\u1ebft n\u1ed1i (${type}). Ki\u1ec3m tra m\u00e3 ph\u00f2ng v\u00e0 th\u1eed l\u1ea1i.`,
+      enterRoomCodeFirst: "Vui l\u00f2ng nh\u1eadp m\u00e3 ph\u00f2ng.",
+      connecting: "\u0110ang k\u1ebft n\u1ed1i\u2026"
+    }
+  };
+
+  function t(key, ...args) {
+    const entry = I18N[lang][key];
+    return typeof entry === "function" ? entry(...args) : entry;
+  }
+
+  function applyStaticTranslations() {
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const key = el.getAttribute("data-i18n");
+      if (I18N[lang][key] !== undefined) el.textContent = t(key);
+    });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+      const key = el.getAttribute("data-i18n-placeholder");
+      if (I18N[lang][key] !== undefined) el.placeholder = t(key);
+    });
+  }
+
 
   // ================= Shared board geometry (both games) =================
   const SIZE = 5;
@@ -888,24 +1017,39 @@
 
   const GAMES = {
     kap: {
-      key: "kap", title: "Kings & Pawns",
-      sideA: { key: "king", label: "King" }, sideB: { key: "pawn", label: "Pawn" },
+      key: "kap",
+      title: { en: "Kings & Pawns", vi: "Vua & T\u1ed1t" },
+      sideA: { key: "king", label: { en: "King", vi: "Vua" } },
+      sideB: { key: "pawn", label: { en: "Pawn", vi: "T\u1ed1t" } },
       firstTurn: "king",
-      rulesNote: "<b>Kings</b> move one step along any line and capture by landing so that enemy pawns flank them on both sides of any straight line. <b>Pawns</b> move one step but cannot capture &mdash; they win by trapping both Kings with no legal move.",
+      rulesNote: {
+        en: "<b>Kings</b> move one step along any line and capture by landing so that enemy pawns flank them on both sides of any straight line. <b>Pawns</b> move one step but cannot capture &mdash; they win by trapping both Kings with no legal move.",
+        vi: "<b>Vua</b> di chuy\u1ec3n m\u1ed9t b\u01b0\u1edbc theo b\u1ea5t k\u1ef3 \u0111\u01b0\u1eddng n\u00e0o v\u00e0 \u0103n qu\u00e2n b\u1eb1ng c\u00e1ch \u0111\u1eee\u1ee9ng gi\u1eefa hai T\u1ed1t \u0111\u1ed1i ph\u01b0\u01a1ng tr\u00ean c\u00f9ng m\u1ed9t \u0111\u01b0\u1eddng th\u1eb3ng. <b>T\u1ed1t</b> di chuy\u1ec3n m\u1ed9t b\u01b0\u1edbc nh\u01b0ng kh\u00f4ng th\u1ec3 \u0103n qu\u00e2n &mdash; T\u1ed1t th\u1eafng khi d\u1ed3n c\u1ea3 hai Vua v\u00e0o th\u1ebf kh\u00f4ng c\u00f2n n\u01b0\u1edbc \u0111i."
+      },
       colors: { a: "var(--king)", aGlow: "var(--king-glow)", b: "var(--pawn)", bGlow: "var(--pawn-glow)" }
     },
     checkers: {
-      key: "checkers", title: "Checkers",
-      sideA: { key: "white", label: "White" }, sideB: { key: "black", label: "Black" },
+      key: "checkers",
+      title: { en: "Checkers", vi: "C\u1edd \u0110am" },
+      sideA: { key: "white", label: { en: "White", vi: "Tr\u1eafng" } },
+      sideB: { key: "black", label: { en: "Black", vi: "\u0110en" } },
       firstTurn: "white",
-      rulesNote: "Pieces move one step forward (diagonal or straight). Capture by jumping over an adjacent enemy into the empty point beyond. Captures are <b>mandatory</b> and chain into multi-jumps. Reaching the far row promotes a piece to <b>King</b>, which can move and capture in any direction.",
+      rulesNote: {
+        en: "Pieces move one step forward (diagonal or straight). Capture by jumping over an adjacent enemy into the empty point beyond. Captures are <b>mandatory</b> and chain into multi-jumps. Reaching the far row promotes a piece to <b>King</b>, which can move and capture in any direction.",
+        vi: "Qu\u00e2n c\u1edd di chuy\u1ec3n m\u1ed9t b\u01b0\u1edbc (ch\u00e9o ho\u1eb7c th\u1eb3ng). \u0102n qu\u00e2n b\u1eb1ng c\u00e1ch nh\u1ea3y qua qu\u00e2n \u0111\u1ed1i ph\u01b0\u01a1ng li\u1ec1n k\u1ec1 \u0111\u1ec3 \u0111\u00e1p xu\u1ed1ng \u00f4 tr\u1ed1ng ph\u00eda sau. \u0102n qu\u00e2n l\u00e0 <b>b\u1eaft bu\u1ed9c</b> v\u00e0 c\u00f3 th\u1ec3 \u0103n li\u00ean ho\u00e0n nhi\u1ec1u l\u1ea7n. Khi \u0111\u1ebfn h\u00e0ng cu\u1ed1i c\u00f9ng, qu\u00e2n s\u1ebd \u0111\u01b0\u1ee3c phong <b>V\u01b0\u01a1ng</b>, di chuy\u1ec3n v\u00e0 \u0103n qu\u00e2n theo m\u1ecdi h\u01b0\u1edbng."
+      },
       colors: { a: "var(--white-pc)", aGlow: "var(--white-glow)", b: "var(--black-pc)", bGlow: "var(--black-glow)" }
     },
     cothu: {
-      key: "cothu", title: "Cờ Thú",
-      sideA: { key: "top", label: "Top" }, sideB: { key: "bottom", label: "Bottom" },
+      key: "cothu",
+      title: { en: "C\u1edd Th\u00fa (Jungle Chess)", vi: "C\u1edd Th\u00fa" },
+      sideA: { key: "top", label: { en: "Top", vi: "Tr\u00ean" } },
+      sideB: { key: "bottom", label: { en: "Bottom", vi: "D\u01b0\u1edbi" } },
       firstTurn: "top",
-      rulesNote: "8 ranked animals (Rat &lt; Cat &lt; Dog &lt; Wolf &lt; Leopard &lt; Tiger &lt; Lion &lt; Elephant). A piece captures any enemy of equal or lower rank &mdash; except the <b>Rat can capture the Elephant</b> (but not vice versa). Only the Rat may enter the river; Lion and Tiger can leap across it (blocked if a Rat sits in the water). Landing on an enemy trap (next to their own den) drops a piece's rank to 0. <b>Win by marching any piece into the opponent's den.</b>",
+      rulesNote: {
+        en: "8 ranked animals (Rat &lt; Cat &lt; Dog &lt; Wolf &lt; Leopard &lt; Tiger &lt; Lion &lt; Elephant). A piece captures any enemy of equal or lower rank &mdash; except the <b>Rat can capture the Elephant</b> (but not vice versa). Only the Rat may enter the river; Lion and Tiger can leap across it (blocked if a Rat sits in the water). Landing on an enemy trap (next to their own den) drops a piece's rank to 0. <b>Win by marching any piece into the opponent's den.</b>",
+        vi: "8 con v\u1eadt x\u1ebfp h\u1ea1ng (Chu\u1ed9t &lt; M\u00e8o &lt; Ch\u00f3 &lt; S\u00f3i &lt; B\u00e1o &lt; H\u1ed5 &lt; S\u01b0 T\u1eed &lt; Voi). M\u1ed9t qu\u00e2n \u0103n \u0111\u01b0\u1ee3c b\u1ea5t k\u1ef3 qu\u00e2n \u0111\u1ed1ch n\u00e0o c\u00f9ng h\u1ea1ng ho\u1eb7c th\u1ea5p h\u01a1n &mdash; ngo\u1ea1i tr\u1eeb <b>Chu\u1ed9t c\u00f3 th\u1ec3 \u0103n Voi</b> (nh\u01b0ng ng\u01b0\u1ee3c l\u1ea1i th\u00ec kh\u00f4ng). Ch\u1ec9 Chu\u1ed9t m\u1edbi \u0111\u01b0\u1ee3c xu\u1ed1ng s\u00f4ng; S\u01b0 T\u1eed v\u00e0 H\u1ed5 c\u00f3 th\u1ec3 nh\u1ea3y qua s\u00f4ng (b\u1ecb ch\u1eb7n n\u1ebfu c\u00f3 Chu\u1ed9t \u0111ang \u1edf d\u01b0\u1edbi n\u01b0\u1edbc tr\u00ean \u0111\u01b0\u1eddng nh\u1ea3y). \u0110\u1ee9ng v\u00e0o b\u1eaby c\u1ee7a \u0111\u1ed1i ph\u01b0\u01a1ng (c\u1ea1nh chu\u1ed3ng c\u1ee7a h\u1ecd) khi\u1ebfn h\u1ea1ng c\u1ee7a qu\u00e2n \u0111\u00f3 v\u1ec1 0. <b>Th\u1eafng khi \u0111\u01b0a b\u1ea5t k\u1ef3 qu\u00e2n n\u00e0o v\u00e0o chu\u1ed3ng \u0111\u1ed1i ph\u01b0\u01a1ng.</b>"
+      },
       colors: { a: "var(--king)", aGlow: "var(--king-glow)", b: "var(--pawn)", bGlow: "var(--pawn-glow)" },
       isGrid: true
     }
@@ -1349,22 +1493,28 @@
     }
   }
 
+  function sideLabel(g, isA) {
+    return (isA ? g.sideA.label : g.sideB.label)[lang];
+  }
+  function gameTitleText(g) { return g.title[lang]; }
+  function rulesNoteHtml(g) { return g.rulesNote[lang]; }
+
   function updateStatus() {
     const g = G();
-    const aLabel = g.sideA.label, bLabel = g.sideB.label;
     const turnIsA = currentTurn === g.sideA.key;
-    turnLabel.textContent = isGameOver ? "Game Over" : ((turnIsA ? aLabel : bLabel) + "'s Turn");
+    const label = sideLabel(g, turnIsA);
+    turnLabel.textContent = isGameOver ? t("gameOver") : t("turnOf", label);
     turnLabel.classList.toggle("active-a", turnIsA && !isGameOver);
     turnLabel.classList.toggle("active-b", !turnIsA && !isGameOver);
 
     if (activeGame === "kap") {
-      pieceCountLabel.textContent = KAP.countPawns(board) + " pawns";
+      pieceCountLabel.textContent = t("pawnsCount", KAP.countPawns(board));
     } else if (activeGame === "checkers") {
       const w = getPiecesOf(board, "white").length, bl = getPiecesOf(board, "black").length;
-      pieceCountLabel.textContent = "White " + w + " \u2013 Black " + bl;
+      pieceCountLabel.textContent = t("whiteBlackCount", w, bl);
     } else {
-      const t = ctGetPiecesOf(board, "top").length, bo = ctGetPiecesOf(board, "bottom").length;
-      pieceCountLabel.textContent = "Top " + t + " \u2013 Bottom " + bo;
+      const top = ctGetPiecesOf(board, "top").length, bo = ctGetPiecesOf(board, "bottom").length;
+      pieceCountLabel.textContent = t("topBottomCount", top, bo);
     }
   }
 
@@ -1374,34 +1524,30 @@
     document.documentElement.style.setProperty("--dot-a-glow", g.colors.aGlow);
     document.documentElement.style.setProperty("--dot-b", g.colors.b);
     document.documentElement.style.setProperty("--dot-b-glow", g.colors.bGlow);
-    gameTitle.textContent = g.title;
-    rulesNote.innerHTML = g.rulesNote;
+    gameTitle.textContent = gameTitleText(g);
+    rulesNote.innerHTML = rulesNoteHtml(g);
   }
 
   function updateSubtitle() {
     const g = G();
-    if (mode === "local") { subtitle.textContent = "Local 2-player \u2014 pass the device each turn."; return; }
-    if (mode === "online") {
-      subtitle.textContent = "Online match \u2014 you are " + (humanSide === g.sideA.key ? g.sideA.label : g.sideB.label) + ".";
-      return;
-    }
-    subtitle.textContent = "You are " + (humanSide === g.sideA.key ? g.sideA.label : g.sideB.label) + ". The machine plays the other side.";
+    if (mode === "local") { subtitle.textContent = t("subtitleLocal"); return; }
+    const label = sideLabel(g, humanSide === g.sideA.key);
+    if (mode === "online") { subtitle.textContent = t("subtitleOnline", label); return; }
+    subtitle.textContent = t("subtitleAI", label);
   }
 
   function showGameOver(winner) {
     const g = G();
     overlay.classList.add("show");
     const isA = winner === g.sideA.key;
-    overlayTitle.textContent = (isA ? g.sideA.label : g.sideB.label) + " Wins!";
+    overlayTitle.textContent = t("winsSuffix", sideLabel(g, isA));
     overlayTitle.className = isA ? "a-win" : "b-win";
     if (activeGame === "kap") {
-      overlaySubtitle.textContent = winner === "king" ? "All pawns have been captured." : "Both Kings are trapped with no legal move.";
+      overlaySubtitle.textContent = winner === "king" ? t("kapWinAllPawns") : t("kapWinTrapped");
     } else if (activeGame === "checkers") {
-      overlaySubtitle.textContent = "The opponent has no pieces or moves left.";
+      overlaySubtitle.textContent = t("noMovesLeft");
     } else {
-      overlaySubtitle.textContent = lastCtWinWasDen
-        ? "A piece marched straight into the enemy den!"
-        : "The opponent has no pieces or moves left.";
+      overlaySubtitle.textContent = lastCtWinWasDen ? t("cothuWinDen") : t("noMovesLeft");
     }
   }
 
@@ -1410,8 +1556,8 @@
   // subdomain + API key to enable TURN relay for connections across strict NATs/firewalls.
   // Without these, only STUN is used, which fails for some cross-network connections.
   const TURN_CONFIG = {
-    meteredSubdomain: "chess-together.metered.live", // e.g. "myproject" (becomes myproject.metered.live)
-    meteredApiKey: "df354fde4eb1f9d614b8afebb574078d2830"
+    meteredSubdomain: "", // e.g. "myproject" (becomes myproject.metered.live)
+    meteredApiKey: ""
   };
   const STUN_FALLBACK = [
     { urls: "stun:stun.l.google.com:19302" },
@@ -1447,42 +1593,42 @@
     isHost = true;
     const code = randomRoomCode(4);
     roomCodeDisplay.style.display = "none";
-    setOnlineStatus("Creating room\u2026");
+    setOnlineStatus(t("creatingRoom"));
     const iceServers = await getIceServers();
     peer = new Peer(ROOM_PREFIX + code.toLowerCase(), { config: { iceServers } });
     peer.on("open", () => {
       roomCodeDisplay.style.display = "block";
       roomCodeDisplay.textContent = code;
-      setOnlineStatus("Waiting for your friend to join\u2026");
+      setOnlineStatus(t("waitingForFriend"));
     });
     peer.on("connection", incoming => { conn = incoming; setupConnection(); });
-    peer.on("error", err => setOnlineStatus("Connection error (" + err.type + "). Try creating a new room.", "error"));
+    peer.on("error", err => setOnlineStatus(t("connectionErrorCreate", err.type), "error"));
   }
   async function joinRoom(codeRaw) {
     const code = (codeRaw || "").trim().toLowerCase();
-    if (!code) { setOnlineStatus("Enter a room code first.", "error"); return; }
+    if (!code) { setOnlineStatus(t("enterRoomCodeFirst"), "error"); return; }
     teardownConnection();
     isHost = false;
-    setOnlineStatus("Connecting\u2026");
+    setOnlineStatus(t("connecting"));
     const iceServers = await getIceServers();
     peer = new Peer({ config: { iceServers } });
     peer.on("open", () => {
       conn = peer.connect(ROOM_PREFIX + code, { reliable: true });
       setupConnection();
     });
-    peer.on("error", err => setOnlineStatus("Connection error (" + err.type + "). Check the code and try again.", "error"));
+    peer.on("error", err => setOnlineStatus(t("connectionErrorJoin", err.type), "error"));
   }
   function setupConnection() {
     conn.on("open", () => {
-      setOnlineStatus("Connected!", "success");
+      setOnlineStatus(t("connected"), "success");
       if (isHost) {
         conn.send({ type: "assignSide", game: activeGame, side: otherSide(humanSide) });
         beginOnlineGame();
       }
     });
     conn.on("data", onData);
-    conn.on("close", () => setOnlineStatus("Your friend disconnected.", "error"));
-    conn.on("error", () => setOnlineStatus("Connection error.", "error"));
+    conn.on("close", () => setOnlineStatus(t("friendDisconnected"), "error"));
+    conn.on("error", () => setOnlineStatus(t("connectionError"), "error"));
   }
   function onData(msg) {
     if (!msg || !msg.type) return;
@@ -1712,7 +1858,7 @@
       if (!move) return;
       const result = KAP.tryMove(board, move.from, move.to);
       afterKapMove({ broadcast: false, from: move.from, to: move.to, captured: result.captured });
-    } else {
+    } else if (activeGame === "checkers") {
       const move = CK.chooseAIMove(board, side);
       if (!move) return;
       if (move.kind === "plain") {
@@ -1729,12 +1875,22 @@
           finishCheckersTurn({ broadcast: false });
         });
       }
+    } else {
+      const move = CT.chooseAIMove(board, side);
+      if (!move) return;
+      const result = CT.applyMove(board, move.from, move.to);
+      ctAnimateMove(move.from, move.to);
+      if (result.captured) ctAnimateCapture(result.captured);
+      finishCoThuTurn({ broadcast: false, wonByDen: result.wonByDen, mover: side });
     }
   }
 
   // ================= Reset / mode flow =================
   function resetBoardLocal() {
-    board = activeGame === "kap" ? KAP.createBoard() : CK.createBoard();
+    setBoardMode(activeGame === "cothu");
+    if (activeGame === "kap") board = KAP.createBoard();
+    else if (activeGame === "checkers") board = CK.createBoard();
+    else board = CT.createBoard();
     currentTurn = G().firstTurn;
     selected = null;
     isGameOver = false;
@@ -1742,7 +1898,7 @@
     ckChainOrigin = null;
     ckChainSteps = [];
     overlay.classList.remove("show");
-    syncPieces();
+    if (activeGame === "cothu") ctSyncPieces(); else syncPieces();
     updateStatus();
     refreshHighlights();
   }
@@ -1775,10 +1931,10 @@
     const g = G();
     humanSide = g.sideA.key;
     mode = "ai";
-    modeScreenTitle.textContent = g.title;
+    modeScreenTitle.textContent = gameTitleText(g);
     const sideBtns = sideButtons.querySelectorAll(".mode-btn");
-    sideBtns[0].textContent = g.sideA.label; sideBtns[0].dataset.value = "a";
-    sideBtns[1].textContent = g.sideB.label; sideBtns[1].dataset.value = "b";
+    sideBtns[0].textContent = sideLabel(g, true); sideBtns[0].dataset.value = "a";
+    sideBtns[1].textContent = sideLabel(g, false); sideBtns[1].dataset.value = "b";
     sideBtns.forEach((b,i) => b.classList.toggle("active", i === 0));
     onlinePanel.style.display = "none";
     startBtn.style.display = "block";
@@ -1837,9 +1993,33 @@
   document.getElementById("overlayModeBtn").addEventListener("click", openModeScreen);
   document.getElementById("backToGameChoice").addEventListener("click", openGameChoiceScreen);
 
+  // ================= Language toggle =================
+  const langToggleBtn = document.getElementById("langToggle");
+  function refreshAllText() {
+    applyStaticTranslations();
+    langToggleBtn.textContent = lang === "en" ? "VI" : "EN";
+    // Re-label the mode-select screen's side buttons + title if it's open.
+    if (startScreen.classList.contains("show")) {
+      const g = G();
+      modeScreenTitle.textContent = gameTitleText(g);
+      const sideBtns = sideButtons.querySelectorAll(".mode-btn");
+      sideBtns[0].textContent = sideLabel(g, true);
+      sideBtns[1].textContent = sideLabel(g, false);
+    }
+    applyThemeColors();
+    updateStatus();
+    updateSubtitle();
+  }
+  langToggleBtn.addEventListener("click", () => {
+    lang = lang === "en" ? "vi" : "en";
+    refreshAllText();
+  });
+
   // ================= Init =================
   buildStaticLines();
   buildPoints();
+  applyStaticTranslations();
+  langToggleBtn.textContent = lang === "en" ? "VI" : "EN";
   applyThemeColors();
   syncPieces();
   updateStatus();
