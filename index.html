@@ -154,6 +154,24 @@
   .overlay-card h2.b-win { color: var(--pawn-glow); }
   .overlay-card p { color: var(--text-dim); margin: 0 0 20px; font-size: 0.92rem; }
 
+  .score-line {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    margin: -6px 0 20px;
+    padding: 10px;
+    background: #232a36;
+    border: 1px solid #333c4c;
+    border-radius: 10px;
+  }
+  .score-line .score-a { color: var(--dot-a-glow, var(--king-glow)); }
+  .score-line .score-b { color: var(--dot-b-glow, var(--pawn-glow)); }
+  .score-line .score-sep { color: var(--text-dim); font-weight: 400; font-size: 0.9rem; }
+
   .game-pick-row { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
   .game-pick-btn {
     padding: 16px;
@@ -369,6 +387,7 @@
     <div class="overlay-card">
       <h2 id="overlayTitle">Kings Win!</h2>
       <p id="overlaySubtitle">All pawns have been captured.</p>
+      <div id="scoreLine" class="score-line"></div>
       <button id="overlayRestartBtn" data-i18n="playAgainBtn">Play Again</button>
       <button id="overlayModeBtn" style="margin-top:8px;" data-i18n="changeMode">Change Mode</button>
     </div>
@@ -430,7 +449,8 @@
       enterRoomCodeFirst: "Enter a room code first.",
       connecting: "Connecting\u2026",
       stillWaitingHint: "Still waiting after 30s \u2014 make sure your friend has the right room code and a stable connection.",
-      connectTimeoutJoin: "Couldn't connect within 20 seconds. This usually means a firewall or VPN is blocking the connection. Try a different network, turn off any VPN, or try again."
+      connectTimeoutJoin: "Couldn't connect within 20 seconds. This usually means a firewall or VPN is blocking the connection. Try a different network, turn off any VPN, or try again.",
+      scoreLine: (aLabel, aScore, bLabel, bScore) => `${aLabel} ${aScore} \u2013 ${bLabel} ${bScore}`
     },
     vi: {
       appTitle: "Tr\u00f2 Ch\u01a1i C\u1edd",
@@ -441,7 +461,7 @@
       chooseGameSubtitle: "Ch\u1ecdn m\u1ed9t tr\u00f2 ch\u01a1i b\u00ean d\u01b0\u1edbi.",
       gcKapTitle: "Vua & T\u1ed1t",
       gcKapDesc: "2 Vua s\u0103n 14 T\u1ed1t. Vua \u0103n qu\u00e2n b\u1eb1ng c\u00e1ch k\u1eb9p T\u1ed1t gi\u1eefa hai b\u00ean; T\u1ed1t th\u1eafng b\u1eb1ng c\u00e1ch d\u1ed3n c\u1ea3 hai Vua v\u00e0o th\u1ebf b\u00ed.",
-      gcCheckersTitle: "Cờ Nhào",
+      gcCheckersTitle: "C\u1edd Nh\u00e0o",
       gcCheckersDesc: "C\u1edd \u0111am nh\u1ea3y \u0103n qu\u00e2n truy\u1ec1n th\u1ed1ng, chuy\u1ec3n th\u1ec3 sang \u0111\u01b0\u1eddng ch\u00e9o v\u00e0 \u0111\u01b0\u1eddng th\u1eb3ng c\u1ee7a b\u00e0n c\u1edd n\u00e0y. \u0102n qu\u00e2n b\u1eaft bu\u1ed9c, \u0103n li\u00ean ho\u00e0n, phong V\u01b0\u01a1ng.",
       gcCothuTitle: "C\u1edd Th\u00fa",
       gcCothuDesc: "C\u1edd th\u00fa Vi\u1ec7t Nam tr\u00ean b\u00e0n c\u1edd ri\u00eang 7\u00d79: \u0103n qu\u00e2n theo h\u1ea1ng, c\u00f3 s\u00f4ng, c\u00f3 b\u1eaby, v\u00e0 Chu\u1ed9t c\u00f3 th\u1ec3 h\u1ea1 g\u1ee5c Voi. Th\u1eafng b\u1eb1ng c\u00e1ch v\u00e0o chu\u1ed3ng \u0111\u1ed1i ph\u01b0\u01a1ng.",
@@ -480,7 +500,8 @@
       enterRoomCodeFirst: "Vui l\u00f2ng nh\u1eadp m\u00e3 ph\u00f2ng.",
       connecting: "\u0110ang k\u1ebft n\u1ed1i\u2026",
       stillWaitingHint: "V\u1eabn ch\u1edd sau 30 gi\u00e2y \u2014 h\u00e3y ki\u1ec3m tra b\u1ea1n c\u1ee7a b\u1ea1n c\u00f3 \u0111\u00fang m\u00e3 ph\u00f2ng v\u00e0 k\u1ebft n\u1ed1i \u1ed5n \u0111\u1ecbnh kh\u00f4ng.",
-      connectTimeoutJoin: "Kh\u00f4ng th\u1ec3 k\u1ebft n\u1ed1i sau 20 gi\u00e2y. Th\u01b0\u1eddng do t\u01b0\u1eddng l\u1eeda ho\u1eb7c VPN ch\u1eb7n k\u1ebft n\u1ed1i. H\u00e3y th\u1eed m\u1ea1ng kh\u00e1c, t\u1eaft VPN, ho\u1eb7c th\u1eed l\u1ea1i."
+      connectTimeoutJoin: "Kh\u00f4ng th\u1ec3 k\u1ebft n\u1ed1i sau 20 gi\u00e2y. Th\u01b0\u1eddng do t\u01b0\u1eddng l\u1eeda ho\u1eb7c VPN ch\u1eb7n k\u1ebft n\u1ed1i. H\u00e3y th\u1eed m\u1ea1ng kh\u00e1c, t\u1eaft VPN, ho\u1eb7c th\u1eed l\u1ea1i.",
+      scoreLine: (aLabel, aScore, bLabel, bScore) => `${aLabel} ${aScore} \u2013 ${bLabel} ${bScore}`
     }
   };
 
@@ -1078,6 +1099,8 @@
   let ckChainOrigin = null;
   let ckChainSteps = [];
   let lastCtWinWasDen = false;
+  let score = { a: 0, b: 0 };
+  let lastWinner = null;
 
   function G() { return GAMES[activeGame]; }
   function otherSide(side) { return activeGame === "kap" ? KAP.other(side) : CK.other(side); }
@@ -1099,6 +1122,7 @@
   const overlay = document.getElementById("overlay");
   const overlayTitle = document.getElementById("overlayTitle");
   const overlaySubtitle = document.getElementById("overlaySubtitle");
+  const scoreLineEl = document.getElementById("scoreLine");
   const startScreen = document.getElementById("startScreen");
   const modeScreenTitle = document.getElementById("modeScreenTitle");
   const gameChoiceScreen = document.getElementById("gameChoiceScreen");
@@ -1543,7 +1567,7 @@
     subtitle.textContent = t("subtitleAI", label);
   }
 
-  function showGameOver(winner) {
+  function renderGameOverPanel(winner) {
     const g = G();
     overlay.classList.add("show");
     const isA = winner === g.sideA.key;
@@ -1556,6 +1580,27 @@
     } else {
       overlaySubtitle.textContent = lastCtWinWasDen ? t("cothuWinDen") : t("noMovesLeft");
     }
+    renderScoreLine();
+  }
+
+  function showGameOver(winner) {
+    lastWinner = winner;
+    const g = G();
+    const isA = winner === g.sideA.key;
+    if (isA) score.a++; else score.b++;
+    renderGameOverPanel(winner);
+  }
+
+  function renderScoreLine() {
+    const g = G();
+    scoreLineEl.innerHTML =
+      `<span class="score-a">${sideLabel(g, true)} ${score.a}</span>` +
+      `<span class="score-sep">\u2013</span>` +
+      `<span class="score-b">${sideLabel(g, false)} ${score.b}</span>`;
+  }
+
+  function resetScore() {
+    score = { a: 0, b: 0 };
   }
 
   // ================= Online networking =================
@@ -1563,8 +1608,8 @@
   // subdomain + API key to enable TURN relay for connections across strict NATs/firewalls.
   // Without these, only STUN is used, which fails for some cross-network connections.
   const TURN_CONFIG = {
-    meteredSubdomain: "", // e.g. "myproject" (becomes myproject.metered.live)
-    meteredApiKey: ""
+    meteredSubdomain: "chess-together.metered.live", // e.g. "myproject" (becomes myproject.metered.live)
+    meteredApiKey: "df354fde4eb1f9d614b8afebb574078d2830"
   };
   const STUN_FALLBACK = [
     { urls: "stun:stun.l.google.com:19302" },
@@ -1716,6 +1761,7 @@
     startScreen.classList.remove("show");
     applyThemeColors();
     updateSubtitle();
+    resetScore();
     resetBoardLocal();
   }
 
@@ -1981,6 +2027,7 @@
     const g = G();
     humanSide = g.sideA.key;
     mode = "ai";
+    resetScore();
     modeScreenTitle.textContent = gameTitleText(g);
     const sideBtns = sideButtons.querySelectorAll(".mode-btn");
     sideBtns[0].textContent = sideLabel(g, true); sideBtns[0].dataset.value = "a";
@@ -2034,6 +2081,7 @@
     startScreen.classList.remove("show");
     applyThemeColors();
     updateSubtitle();
+    resetScore();
     restart();
   });
 
@@ -2048,7 +2096,6 @@
   function refreshAllText() {
     applyStaticTranslations();
     langToggleBtn.textContent = lang === "en" ? "VI" : "EN";
-    // Re-label the mode-select screen's side buttons + title if it's open.
     if (startScreen.classList.contains("show")) {
       const g = G();
       modeScreenTitle.textContent = gameTitleText(g);
@@ -2056,6 +2103,7 @@
       sideBtns[0].textContent = sideLabel(g, true);
       sideBtns[1].textContent = sideLabel(g, false);
     }
+    if (overlay.classList.contains("show") && lastWinner) renderGameOverPanel(lastWinner);
     applyThemeColors();
     updateStatus();
     updateSubtitle();
