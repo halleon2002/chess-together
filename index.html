@@ -1058,7 +1058,7 @@
     },
     checkers: {
       key: "checkers",
-      title: { en: "Checkers", vi: "C\u1edd Nhào" },
+      title: { en: "Checkers", vi: "C\u1edd Nh\u00e0o" },
       sideA: { key: "white", label: { en: "White", vi: "Tr\u1eafng" } },
       sideB: { key: "black", label: { en: "Black", vi: "\u0110en" } },
       firstTurn: "white",
@@ -1251,22 +1251,24 @@
     const group = fromEntry.pieceGroup;
     fromEntry.pieceGroup = null;
     if (!group) return;
-    if (toEntry.pieceGroup) { ctPieceLayer.removeChild(toEntry.pieceGroup); toEntry.pieceGroup = null; }
+
+    // A piece already at the destination means this move captured it — fade
+    // it out here (captures in Cờ Thú land on the same square as the victim,
+    // unlike Checkers, so this can't be handled as a separate "capture" step).
+    if (toEntry.pieceGroup) {
+      const capturedGroup = toEntry.pieceGroup;
+      toEntry.pieceGroup = null;
+      capturedGroup.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+      capturedGroup.style.opacity = "0";
+      const cx = ctCoordX(to.x), cy = ctCoordY(to.y);
+      capturedGroup.style.transform = `translate(${cx}px, ${cy}px) scale(0.2)`;
+      setTimeout(() => { if (capturedGroup.parentNode) ctPieceLayer.removeChild(capturedGroup); }, 260);
+    }
+
     toEntry.pieceGroup = group;
     ctPlaceGroupAt(group, to, true);
   }
 
-  function ctAnimateCapture(at) {
-    const entry = ctPointEls[at.x+","+at.y];
-    const group = entry.pieceGroup;
-    entry.pieceGroup = null;
-    if (!group) return;
-    group.style.transition = "opacity 0.25s ease, transform 0.25s ease";
-    group.style.opacity = "0";
-    const cx = ctCoordX(at.x), cy = ctCoordY(at.y);
-    group.style.transform = `translate(${cx}px, ${cy}px) scale(0.2)`;
-    setTimeout(() => { if (group.parentNode) ctPieceLayer.removeChild(group); }, 260);
-  }
 
   function buildStaticLines() {
     const lines = [];
@@ -1752,7 +1754,6 @@
     } else if (msg.type === "ctMove") {
       const result = CT.applyMove(board, msg.from, msg.to);
       ctAnimateMove(msg.from, msg.to);
-      if (result.captured) ctAnimateCapture(result.captured);
       finishCoThuTurn({ broadcast: false, wonByDen: result.wonByDen, mover: currentTurn });
     }
   }
@@ -1912,7 +1913,6 @@
     const result = CT.applyMove(board, from, to);
     selected = null;
     ctAnimateMove(from, to);
-    if (result.captured) ctAnimateCapture(result.captured);
     finishCoThuTurn({ broadcast: true, from, to, wonByDen: result.wonByDen, mover: currentTurn });
   }
 
@@ -1976,7 +1976,6 @@
       if (!move) return;
       const result = CT.applyMove(board, move.from, move.to);
       ctAnimateMove(move.from, move.to);
-      if (result.captured) ctAnimateCapture(result.captured);
       finishCoThuTurn({ broadcast: false, wonByDen: result.wonByDen, mover: side });
     }
   }
