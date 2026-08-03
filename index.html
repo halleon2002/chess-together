@@ -1215,6 +1215,38 @@
     rat: "images/mouse.png",
   };
 
+const pieceImageCache = {};
+
+async function preloadPieceImages() {
+
+    const tasks = [];
+
+    for (const [type, src] of Object.entries(CT_PIECE_IMAGES)) {
+
+        const img = new Image();
+
+        img.src = src;
+
+        pieceImageCache[type] = img;
+
+        tasks.push(
+            new Promise(resolve => {
+                img.onload = resolve;
+                img.onerror = resolve;
+            })
+        );
+    }
+
+    await Promise.all(tasks);
+
+    // Force browser to decode every image
+    await Promise.all(
+        Object.values(pieceImageCache).map(img =>
+            img.decode ? img.decode().catch(() => {}) : Promise.resolve()
+        )
+    );
+}
+
   function ctMakePieceShape(piece) {
     const g = document.createElementNS(NS, "g");
     g.setAttribute("class", "piece-group");
@@ -1224,7 +1256,7 @@
     g.appendChild(ring);
     const img = document.createElementNS(NS, "image");
     const size = 50;
-    img.setAttribute("href", CT_PIECE_IMAGES[piece.type]);
+    img.setAttribute("href", pieceImageCache[piece.type].src);
     img.setAttribute("x", -size/2); img.setAttribute("y", -size/2);
     img.setAttribute("width", size); img.setAttribute("height", size);
     g.appendChild(img);
@@ -2119,14 +2151,20 @@
   });
 
   // ================= Init =================
-  buildStaticLines();
-  buildPoints();
-  applyStaticTranslations();
-  langToggleBtn.textContent = lang === "en" ? "VI" : "EN";
-  applyThemeColors();
-  syncPieces();
-  updateStatus();
-  refreshHighlights();
+  (async () => {
+
+    await preloadPieceImages();
+
+    buildStaticLines();
+    buildPoints();
+    applyStaticTranslations();
+    langToggleBtn.textContent = lang === "en" ? "VI" : "EN";
+    applyThemeColors();
+    syncPieces();
+    updateStatus();
+    refreshHighlights();
+
+})();
 })();
 </script>
 </body>
