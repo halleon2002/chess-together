@@ -51,7 +51,11 @@
       connecting: "Connecting…",
       stillWaitingHint: "Still waiting after 30s — make sure your friend has the right room code and a stable connection.",
       connectTimeoutJoin: "Couldn't connect within 20 seconds. This usually means a firewall or VPN is blocking the connection. Try a different network, turn off any VPN, or try again.",
-      scoreLine: (aLabel, aScore, bLabel, bScore) => `${aLabel} ${aScore} – ${bLabel} ${bScore}`
+      scoreLine: (aLabel, aScore, bLabel, bScore) => `${aLabel} ${aScore} – ${bLabel} ${bScore}`,
+      chatTitle: "Chat",
+      chatPlaceholder: "Type a message...",
+      chatSendBtn: "Send",
+      chatConnectedNotice: "You're connected — say hi!"
     },
     vi: {
       appTitle: "Trò Chơi Cờ",
@@ -102,7 +106,11 @@
       connecting: "Đang kết nối…",
       stillWaitingHint: "Vẫn chờ sau 30 giây — hãy kiểm tra bạn của bạn có đúng mã phòng và kết nối ổn định không.",
       connectTimeoutJoin: "Không thể kết nối sau 20 giây. Thường do tường lửa hoặc VPN chặn kết nối. Hãy thử mạng khác, tắt VPN, hoặc thử lại.",
-      scoreLine: (aLabel, aScore, bLabel, bScore) => `${aLabel} ${aScore} – ${bLabel} ${bScore}`
+      scoreLine: (aLabel, aScore, bLabel, bScore) => `${aLabel} ${aScore} – ${bLabel} ${bScore}`,
+      chatTitle: "Trò chuyện",
+      chatPlaceholder: "Nhập tin nhắn...",
+      chatSendBtn: "Gửi",
+      chatConnectedNotice: "Bạn đã kết nối — chào hỏi nhau nào!"
     }
   };
 

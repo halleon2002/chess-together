@@ -35,6 +35,7 @@
     if (peer) { try { peer.destroy(); } catch (e) {} }
     peer = null; conn = null;
     clearConnectTimeout();
+    hideChatUI();
   }
   let connectTimeoutId = null;
   function clearConnectTimeout() {
@@ -111,6 +112,7 @@
     conn.on("open", () => {
       clearConnectTimeout();
       setOnlineStatus(t("connected"), "success");
+      showChatUI();
       if (isHost) {
         conn.send({ type: "assignSide", game: activeGame, side: otherSide(humanSide) });
         beginOnlineGame();
@@ -148,6 +150,8 @@
       const result = CT.applyMove(board, msg.from, msg.to);
       ctAnimateMove(msg.from, msg.to);
       finishCoThuTurn({ broadcast: false, wonByDen: result.wonByDen, mover: currentTurn });
+    } else if (msg.type === "chat") {
+      receiveChatMessage(msg.text);
     }
   }
   function beginOnlineGame() {
@@ -156,5 +160,6 @@
     applyThemeColors();
     updateSubtitle();
     resetScore();
+    clearChatHistory();
     resetBoardLocal();
   }
