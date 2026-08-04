@@ -1,0 +1,123 @@
+// ================= i18n (English / Vietnamese) =================
+  let lang = "en";
+
+  const I18N = {
+    en: {
+      appTitle: "Board Games",
+      chooseGameToBegin: "Choose a game to begin.",
+      newGame: "New Game",
+      changeMode: "Change Mode",
+      chooseGameTitle: "Choose a Game",
+      chooseGameSubtitle: "Pick a game below.",
+      gcKapTitle: "Kings & Pawns",
+      gcKapDesc: "2 Kings hunt 14 Pawns. Kings capture by sandwiching pawns; Pawns win by trapping both Kings.",
+      gcCheckersTitle: "Checkers",
+      gcCheckersDesc: "Classic jump-capture checkers, adapted to this board's diagonal + straight lines. Forced captures, multi-jumps, promotion.",
+      gcCothuTitle: "Cờ Thú (Jungle Chess)",
+      gcCothuDesc: "Vietnamese animal chess on its own 7×9 board: rank-based captures, river, traps, and a Rat that can take down an Elephant. Win by reaching the enemy den.",
+      modeScreenSubtitle: "Choose your side and opponent",
+      playAsLabel: "Play as",
+      opponentLabel: "Opponent",
+      aiBtn: "AI",
+      localBtn: "Local Player (2P)",
+      onlineBtn: "Online",
+      createRoomBtn: "Create Room",
+      joinRoomBtn: "Join Room",
+      roomCodePlaceholder: "Enter room code",
+      startGameBtn: "Start Game",
+      backToGameChoice: "← Choose a different game",
+      playAgainBtn: "Play Again",
+      gameOver: "Game Over",
+      turnOf: (name) => `${name}'s Turn`,
+      pawnsCount: (n) => `${n} pawns`,
+      whiteBlackCount: (w,b) => `White ${w} – Black ${b}`,
+      topBottomCount: (t,b) => `Top ${t} – Bottom ${b}`,
+      winsSuffix: (name) => `${name} Wins!`,
+      kapWinAllPawns: "All pawns have been captured.",
+      kapWinTrapped: "Both Kings are trapped with no legal move.",
+      noMovesLeft: "The opponent has no pieces or moves left.",
+      cothuWinDen: "A piece marched straight into the enemy den!",
+      subtitleLocal: "Local 2-player — pass the device each turn.",
+      subtitleOnline: (name) => `Online match — you are ${name}.`,
+      subtitleAI: (name) => `You are ${name}. The machine plays the other side.`,
+      creatingRoom: "Creating room…",
+      waitingForFriend: "Waiting for your friend to join…",
+      connected: "Connected!",
+      friendDisconnected: "Your friend disconnected.",
+      connectionError: "Connection error.",
+      connectionErrorCreate: (type) => `Connection error (${type}). Try creating a new room.`,
+      connectionErrorJoin: (type) => `Connection error (${type}). Check the code and try again.`,
+      enterRoomCodeFirst: "Enter a room code first.",
+      connecting: "Connecting…",
+      stillWaitingHint: "Still waiting after 30s — make sure your friend has the right room code and a stable connection.",
+      connectTimeoutJoin: "Couldn't connect within 20 seconds. This usually means a firewall or VPN is blocking the connection. Try a different network, turn off any VPN, or try again.",
+      scoreLine: (aLabel, aScore, bLabel, bScore) => `${aLabel} ${aScore} – ${bLabel} ${bScore}`
+    },
+    vi: {
+      appTitle: "Trò Chơi Cờ",
+      chooseGameToBegin: "Chọn một trò chơi để bắt đầu.",
+      newGame: "Ván Mới",
+      changeMode: "Đổi Chế Độ",
+      chooseGameTitle: "Chọn Trò Chơi",
+      chooseGameSubtitle: "Chọn một trò chơi bên dưới.",
+      gcKapTitle: "Vua & Tốt",
+      gcKapDesc: "2 Vua săn 14 Tốt. Vua ăn quân bằng cách kẹp Tốt giữa hai bên; Tốt thắng bằng cách dồn cả hai Vua vào thế bí.",
+      gcCheckersTitle: "Cờ Nhào",
+      gcCheckersDesc: "Cờ đam nhảy ăn quân truyền thống, chuyển thể sang đường chéo và đường thẳng của bàn cờ này. Ăn quân bắt buộc, ăn liên hoàn, phong Vương.",
+      gcCothuTitle: "Cờ Thú",
+      gcCothuDesc: "Cờ thú Việt Nam trên bàn cờ riêng 7×9: ăn quân theo hạng, có sông, có bẫy, và Chuột có thể hạ gục Tượng. Thắng bằng cách vào chuồng đối phương.",
+      modeScreenSubtitle: "Chọn phe và đối thủ",
+      playAsLabel: "Chơi làm",
+      opponentLabel: "Đối thủ",
+      aiBtn: "Máy",
+      localBtn: "2 Người (cùng máy)",
+      onlineBtn: "Trực tuyến",
+      createRoomBtn: "Tạo Phòng",
+      joinRoomBtn: "Vào Phòng",
+      roomCodePlaceholder: "Nhập mã phòng",
+      startGameBtn: "Bắt Đầu",
+      backToGameChoice: "← Chọn trò chơi khác",
+      playAgainBtn: "Chơi Lại",
+      gameOver: "Kết Thúc",
+      turnOf: (name) => `Lượt của ${name}`,
+      pawnsCount: (n) => `${n} tốt`,
+      whiteBlackCount: (w,b) => `Trắng ${w} – Đen ${b}`,
+      topBottomCount: (t,b) => `Trên ${t} – Dưới ${b}`,
+      winsSuffix: (name) => `${name} Thắng!`,
+      kapWinAllPawns: "Tất cả tốt đã bị bắt.",
+      kapWinTrapped: "Cả hai Vua đều bị chặn, không thể di chuyển.",
+      noMovesLeft: "Đối thủ không còn quân hoặc nước đi nào.",
+      cothuWinDen: "Một quân đã tiến thẳng vào chuồng đối phương!",
+      subtitleLocal: "2 người chơi cùng máy — chuyền thiết bị mỗi lượt.",
+      subtitleOnline: (name) => `Trận trực tuyến — bạn là ${name}.`,
+      subtitleAI: (name) => `Bạn là ${name}. Máy chơi phe còn lại.`,
+      creatingRoom: "Đang tạo phòng…",
+      waitingForFriend: "Đang chờ bạn của bạn vào phòng…",
+      connected: "Đã kết nối!",
+      friendDisconnected: "Bạn của bạn đã ngắt kết nối.",
+      connectionError: "Lỗi kết nối.",
+      connectionErrorCreate: (type) => `Lỗi kết nối (${type}). Hãy tạo phòng mới.`,
+      connectionErrorJoin: (type) => `Lỗi kết nối (${type}). Kiểm tra mã phòng và thử lại.`,
+      enterRoomCodeFirst: "Vui lòng nhập mã phòng.",
+      connecting: "Đang kết nối…",
+      stillWaitingHint: "Vẫn chờ sau 30 giây — hãy kiểm tra bạn của bạn có đúng mã phòng và kết nối ổn định không.",
+      connectTimeoutJoin: "Không thể kết nối sau 20 giây. Thường do tường lửa hoặc VPN chặn kết nối. Hãy thử mạng khác, tắt VPN, hoặc thử lại.",
+      scoreLine: (aLabel, aScore, bLabel, bScore) => `${aLabel} ${aScore} – ${bLabel} ${bScore}`
+    }
+  };
+
+  function t(key, ...args) {
+    const entry = I18N[lang][key];
+    return typeof entry === "function" ? entry(...args) : entry;
+  }
+
+  function applyStaticTranslations() {
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const key = el.getAttribute("data-i18n");
+      if (I18N[lang][key] !== undefined) el.textContent = t(key);
+    });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+      const key = el.getAttribute("data-i18n-placeholder");
+      if (I18N[lang][key] !== undefined) el.placeholder = t(key);
+    });
+  }
