@@ -16,11 +16,7 @@
   let lastWinner = null;
 
   function G() { return GAMES[activeGame]; }
-  function otherSide(side) {
-  if (activeGame === "kap") return KAP.other(side);
-  if (activeGame === "checkers") return CK.other(side);
-  return CT.other(side);
-}
+  function otherSide(side) { return activeGame === "kap" ? KAP.other(side) : CK.other(side); }
 
   function isHumanTurn() {
     if (mode === "local") return true;
@@ -247,7 +243,7 @@
 
 // ================= Reset / mode flow =================
   function resetBoardLocal() {
-    setBoardMode(activeGame === "cothu" ? "cothu" : activeGame === "chess" ? "chess" : "lattice");
+    setBoardMode(activeGame === "cothu");
     if (activeGame === "kap") board = KAP.createBoard();
     else if (activeGame === "checkers") board = CK.createBoard();
     else board = CT.createBoard();
