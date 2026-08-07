@@ -114,13 +114,13 @@
       setOnlineStatus(t("connected"), "success");
       showChatUI();
       if (isHost) {
-        conn.send({ 
-			type: "assignSide",
+        conn.send({
+			type: "gameInit",
 			game: activeGame,
-			side: otherSide(humanSide) });
-		resetBoardLocal();
-        beginOnlineGame();
-      }
+			side: otherSide(humanSide),
+			board: board,
+			turn: currentTurn
+});
     });
     conn.on("data", onData);
     conn.on("close", () => setOnlineStatus(t("friendDisconnected"), "error"));
@@ -128,12 +128,20 @@
   }
   function onData(msg) {
     if (!msg || !msg.type) return;
-    if (msg.type === "assignSide") {
-      activeGame = msg.game;
-      humanSide = msg.side;
-	  resetBoardLocal();
-      beginOnlineGame();
-    } else if (msg.type === "kapMove") {
+    if (msg.type === "gameInit") {
+    activeGame = msg.game;
+    humanSide = msg.side;
+
+    resetBoardLocal();
+
+    board = structuredClone(msg.board);
+    currentTurn = msg.turn;
+
+    renderBoard();
+    refreshHighlights();
+	}
+	
+	else if (msg.type === "kapMove") {
       const result = KAP.tryMove(board, msg.from, msg.to);
       afterKapMove({ broadcast: false, from: msg.from, to: msg.to, captured: result ? result.captured : [] });
     } else if (msg.type === "ckPlain") {
