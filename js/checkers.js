@@ -204,3 +204,152 @@
     score -= (Math.abs(to.x - 2) + Math.abs(to.y - 2)) * 1;
     return score;
   };
+
+  // ---- Controller API (used by app.js) ----
+  CK.getLegalPlain = function (point) {
+    return CK.getPlainMoves(board, point);
+  };
+  CK.getLegalCaptures = function (point) {
+    return CK.getCaptures(board, point);
+  };
+
+  CK.handleClick = function (p) {
+    if (ckPendingFrom) {
+      const caps = CK.getCaptures(board, ckPendingFrom);
+      const match = caps.find(c => samePoint(c.landing, p));
+      if (match) CK._performCapture(match);
+      return;
+    }
+
+    if (selected) {
+      const caps = CK.getCaptures(board, selected);
+      const capMatch = caps.find(c => samePoint(c.landing, p));
+      if (capMatch) {
+        ckChainOrigin = selected;
+        ckChainSteps = [];
+        CK._performCapture(capMatch);
+        return;
+      }
+
+      const plains = CK.getPlainMoves(board, selected);
+      if (plains.some(m => samePoint(m, p))) {
+        CK._performPlain(selected, p);
+        return;
+      }
+
+      const clicked = getPiece(board, p);
+      if (clicked && clicked.owner === currentTurn) {
+        selected = p;
+        refreshHighlights();
+        return;
+      }
+      selected = null;
+      refreshHighlights();
+      return;
+    }
+
+    const piece = getPiece(board, p);
+    if (piece && piece.owner === currentTurn) {
+      selected = p;
+      refreshHighlights();
+    }
+  };
+
+  CK._performPlain = function (from, to) {
+    const result = CK.applyPlainMove(board, from, to);
+    selected = null;
+    animateMove(from, to);
+    if (result.promoted) setTimeout(() => refreshPieceAt(to), 280);
+    CK._finishTurn({ broadcast: true, kind: "plain", from, to });
+  };
+
+  CK._performCapture = function (capture) {
+    const from = ckPendingFrom || selected;
+    const result = CK.applyCapture(board, from, capture);
+    ckChainSteps.push(capture);
+    const landedAt = result.landedAt;
+    animateMove(from, landedAt);
+    animateCapture(capture.mid);
+
+    const canContinue = CK.getCaptures(board, landedAt).length > 0;
+    if (canContinue) {
+      ckPendingFrom = landedAt;
+      selected = landedAt;
+      updateStatus();
+      refreshHighlights();
+      return;
+    }
+
+    const finalFrom = ckChainOrigin;
+    const finalSteps = ckChainSteps;
+    ckPendingFrom = null;
+    ckChainOrigin = null;
+    ckChainSteps = [];
+    selected = null;
+    // Always refresh — promotion may have happened on an earlier hop.
+    setTimeout(() => refreshPieceAt(landedAt), 280);
+    CK._finishTurn({ broadcast: true, kind: "capture", from: finalFrom, steps: finalSteps });
+  };
+
+  CK._finishTurn = function (opts) {
+    opts = opts || {};
+    if (mode === "online" && opts.broadcast && conn && conn.open) {
+      if (opts.kind === "plain") conn.send({ type: "ckPlain", from: opts.from, to: opts.to });
+      else if (opts.kind === "capture") conn.send({ type: "ckCapture", from: opts.from, steps: opts.steps });
+    }
+    currentTurn = CK.other(currentTurn);
+    const winner = CK.checkWinner(board, currentTurn);
+    if (winner) {
+      isGameOver = true;
+      updateStatus();
+      refreshHighlights();
+      setTimeout(() => showGameOver(winner), 300);
+      return;
+    }
+    updateStatus();
+    refreshHighlights();
+    if (mode === "ai") maybeTriggerAI();
+  };
+
+  CK.runAI = function (side) {
+    const move = CK.chooseAIMove(board, side);
+    if (!move) return;
+    if (move.kind === "plain") {
+      const result = CK.applyPlainMove(board, move.from, move.to);
+      animateMove(move.from, move.to);
+      if (result.promoted) setTimeout(() => refreshPieceAt(move.to), 280);
+      CK._finishTurn({ broadcast: false });
+    } else {
+      let cur = move.from;
+      for (const step of move.chain) {
+        CK.applyCapture(board, cur, step);
+        cur = step.landing;
+      }
+      const finalPos = move.chain[move.chain.length - 1].landing;
+      animateChainCaptures(move.from, move.chain, () => {
+        refreshPieceAt(finalPos);
+        CK._finishTurn({ broadcast: false });
+      });
+    }
+  };
+
+  CK.applyRemote = function (msg) {
+    if (msg.type === "ckPlain") {
+      const result = CK.applyPlainMove(board, msg.from, msg.to);
+      animateMove(msg.from, msg.to);
+      if (result.promoted) setTimeout(() => refreshPieceAt(msg.to), 280);
+      CK._finishTurn({ broadcast: false });
+    } else if (msg.type === "ckCapture") {
+      let cur = msg.from;
+      for (const step of msg.steps) {
+        CK.applyCapture(board, cur, step);
+        cur = step.landing;
+      }
+      const finalPos = msg.steps[msg.steps.length - 1].landing;
+      animateChainCaptures(msg.from, msg.steps, () => {
+        refreshPieceAt(finalPos);
+        CK._finishTurn({ broadcast: false });
+      });
+    }
+  };
+

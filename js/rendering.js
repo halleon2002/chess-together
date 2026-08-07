@@ -58,6 +58,14 @@
     if (isGrid && !ctBoardBuilt) { buildCoThuBoard(); ctBoardBuilt = true; }
   }
 
+  function renderBoard() {
+    const isGrid = !!G().isGrid;
+    setBoardMode(isGrid);
+    if (isGrid) ctSyncPieces();
+    else syncPieces();
+  }
+
+
   function buildCoThuBoard() {
     for (const p of ctAllPoints()) {
       const x = CT_PAD_X + p.x * CT_CELL, y = CT_PAD_Y + p.y * CT_CELL;
@@ -363,14 +371,10 @@ async function preloadPieceImages() {
   }
 
   function currentLegalPlain(point) {
-    if (activeGame === "kap") return KAP.getLegalMoves(board, point);
-    if (activeGame === "checkers") return CK.getPlainMoves(board, point);
-    return CT.getLegalMoves(board, point).filter(m => !m.capture).map(m => m.to);
+    return currentModule().getLegalPlain(point);
   }
   function currentLegalCaptures(point) {
-    if (activeGame === "kap") return [];
-    if (activeGame === "checkers") return CK.getCaptures(board, point);
-    return CT.getLegalMoves(board, point).filter(m => m.capture).map(m => ({ landing: m.to }));
+    return currentModule().getLegalCaptures(point);
   }
 
   function refreshHighlights() {

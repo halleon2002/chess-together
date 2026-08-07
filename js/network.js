@@ -113,60 +113,54 @@
       clearConnectTimeout();
       setOnlineStatus(t("connected"), "success");
       showChatUI();
+      // Host starts the game and sends the initial state to the joiner.
+      // Joiner waits for gameInit before starting.
       if (isHost) {
+        beginOnlineGame();
         conn.send({
-			type: "gameInit",
-			game: activeGame,
-			side: otherSide(humanSide),
-			board: board,
-			turn: currentTurn
-});
+          type: "gameInit",
+          game: activeGame,
+          side: otherSide(humanSide),
+          board: board,
+          turn: currentTurn
+        });
+      }
     });
     conn.on("data", onData);
     conn.on("close", () => setOnlineStatus(t("friendDisconnected"), "error"));
     conn.on("error", () => setOnlineStatus(t("connectionError"), "error"));
   }
+
   function onData(msg) {
     if (!msg || !msg.type) return;
+
     if (msg.type === "gameInit") {
-    activeGame = msg.game;
-    humanSide = msg.side;
-
-    resetBoardLocal();
-
-    board = structuredClone(msg.board);
-    currentTurn = msg.turn;
-
-    renderBoard();
-    refreshHighlights();
-	}
-	
-	else if (msg.type === "kapMove") {
-      const result = KAP.tryMove(board, msg.from, msg.to);
-      afterKapMove({ broadcast: false, from: msg.from, to: msg.to, captured: result ? result.captured : [] });
-    } else if (msg.type === "ckPlain") {
-      const result = CK.applyPlainMove(board, msg.from, msg.to);
-      animateMove(msg.from, msg.to);
-      if (result.promoted) setTimeout(() => refreshPieceAt(msg.to), 280);
-      finishCheckersTurn({ broadcast: false });
-    } else if (msg.type === "ckCapture") {
-      let cur = msg.from;
-      for (const step of msg.steps) { CK.applyCapture(board, cur, step); cur = step.landing; }
-      const finalPos = msg.steps[msg.steps.length - 1].landing;
-      animateChainCaptures(msg.from, msg.steps, () => {
-        refreshPieceAt(finalPos);
-        finishCheckersTurn({ broadcast: false });
-      });
-    } else if (msg.type === "restart") {
-      resetBoardLocal();
-    } else if (msg.type === "ctMove") {
-      const result = CT.applyMove(board, msg.from, msg.to);
-      ctAnimateMove(msg.from, msg.to);
-      finishCoThuTurn({ broadcast: false, wonByDen: result.wonByDen, mover: currentTurn });
-    } else if (msg.type === "chat") {
-      receiveChatMessage(msg.text);
+      activeGame = msg.game;
+      humanSide = msg.side;
+      // Leave the mode screen and enter the game for the joiner
+      beginOnlineGame();
+      board = structuredClone(msg.board);
+      currentTurn = msg.turn;
+      renderBoard();
+      updateStatus();
+      refreshHighlights();
+      return;
     }
+
+    if (msg.type === "restart") {
+      resetBoardLocal();
+      return;
+    }
+
+    if (msg.type === "chat") {
+      receiveChatMessage(msg.text);
+      return;
+    }
+
+    // All move messages are handled by the active game's controller
+    currentModule().applyRemote(msg);
   }
+
   function beginOnlineGame() {
     mode = "online";
     startScreen.classList.remove("show");

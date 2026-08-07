@@ -154,45 +154,100 @@
     return top[Math.floor(Math.random() * top.length)];
   };
 
+  // ---- Controller API (used by app.js) ----
+  CT.getLegalPlain = function (point) {
+    return CT.getLegalMoves(board, point).filter(m => !m.capture).map(m => m.to);
+  };
+  CT.getLegalCaptures = function (point) {
+    return CT.getLegalMoves(board, point).filter(m => m.capture).map(m => ({ landing: m.to }));
+  };
 
-  const GAMES = {
-    kap: {
-      key: "kap",
-      title: { en: "Kings & Pawns", vi: "Vua & Tốt" },
-      sideA: { key: "king", label: { en: "King", vi: "Vua" } },
-      sideB: { key: "pawn", label: { en: "Pawn", vi: "Tốt" } },
-      firstTurn: "king",
-      rulesNote: {
-        en: "<b>Kings</b> move one step along any line and capture by landing so that enemy pawns flank them on both sides of any straight line. <b>Pawns</b> move one step but cannot capture &mdash; they win by trapping both Kings with no legal move.",
-        vi: "<b>Vua</b> di chuyển một bước theo bất kỳ đường nào và ăn quân bằng cách đỮứng giữa hai Tốt đối phương trên cùng một đường thẳng. <b>Tốt</b> di chuyển một bước nhưng không thể ăn quân &mdash; Tốt thắng khi dồn cả hai Vua vào thế không còn nước đi."
-      },
-      colors: { a: "var(--king)", aGlow: "var(--king-glow)", b: "var(--pawn)", bGlow: "var(--pawn-glow)" }
-    },
-    checkers: {
-      key: "checkers",
-      title: { en: "Checkers", vi: "Cờ Nhào" },
-      sideA: { key: "white", label: { en: "White", vi: "Trắng" } },
-      sideB: { key: "black", label: { en: "Black", vi: "Đen" } },
-      firstTurn: "white",
-      rulesNote: {
-        en: "Pieces move one step forward (diagonal or straight). Capture by jumping over an adjacent enemy into the empty point beyond. Captures are <b>mandatory</b> and chain into multi-jumps. Reaching the far row promotes a piece to <b>King</b>, which can move and capture in any direction.",
-        vi: "Quân cờ di chuyển một bước (chéo hoặc thẳng). Ăn quân bằng cách nhảy qua quân đối phương liền kề để đáp xuống ô trống phía sau. Ăn quân là <b>bắt buộc</b> và có thể ăn liên hoàn nhiều lần. Khi đến hàng cuối cùng, quân sẽ được phong <b>Vương</b>, di chuyển và ăn quân theo mọi hướng."
-      },
-      colors: { a: "var(--white-pc)", aGlow: "var(--white-glow)", b: "var(--black-pc)", bGlow: "var(--black-glow)" }
-    },
-    cothu: {
-      key: "cothu",
-      title: { en: "Cờ Thú (Jungle Chess)", vi: "Cờ Thú" },
-      sideA: { key: "top", label: { en: "Top", vi: "Trên" } },
-      sideB: { key: "bottom", label: { en: "Bottom", vi: "Dưới" } },
-      firstTurn: "top",
-      rulesNote: {
-        en: "8 ranked animals (Rat &lt; Cat &lt; Dog &lt; Wolf &lt; Leopard &lt; Tiger &lt; Lion &lt; Elephant). A piece captures any enemy of equal or lower rank &mdash; except the <b>Rat can capture the Elephant</b> (but not vice versa). Only the Rat may enter the river; Lion and Tiger can leap across it (blocked if a Rat sits in the water). Landing on an enemy trap (next to their own den) drops a piece's rank to 0. <b>Win by marching any piece into the opponent's den.</b>",
-        vi: "8 con vật xếp hạng (Chuột &lt; Mèo &lt; Chó &lt; Sói &lt; Báo &lt; Hổ &lt; Sư Tử &lt; Tượng). Một quân ăn được bất kỳ quân địch nào cùng hạng hoặc thấp hơn &mdash; ngoại trừ <b>Chuột có thể ăn Tượng</b> (nhưng ngược lại thì không). Chỉ Chuột mới được xuống sông; Sư Tử và Hổ có thể nhảy qua sông (bị chặn nếu có Chuột đang ở dưới nước trên đường nhảy). Đứng vào bẫy của đối phương (cạnh chuồng của họ) khiến hạng của quân đó về 0. <b>Thắng khi đưa bất kỳ quân nào vào chuồng đối phương.</b>"
-      },
-      colors: { a: "var(--king)", aGlow: "var(--king-glow)", b: "var(--pawn)", bGlow: "var(--pawn-glow)" },
-      isGrid: true
+  CT.handleClick = function (p) {
+    if (selected) {
+      const moves = CT.getLegalMoves(board, selected);
+      const match = moves.find(m => samePoint(m.to, p));
+      if (match) {
+        CT._performMove(selected, p);
+        return;
+      }
+      const clicked = getPiece(board, p);
+      if (clicked && clicked.owner === currentTurn) {
+        selected = p;
+        refreshHighlights();
+        return;
+      }
+      selected = null;
+      refreshHighlights();
+      return;
+    }
+    const piece = getPiece(board, p);
+    if (piece && piece.owner === currentTurn) {
+      selected = p;
+      refreshHighlights();
     }
   };
 
-  let activeGame = "kap";
+  CT._performMove = function (from, to) {
+    const result = CT.applyMove(board, from, to);
+    selected = null;
+    ctAnimateMove(from, to);
+    CT._finishTurn({
+      broadcast: true,
+      from,
+      to,
+      wonByDen: result.wonByDen,
+      mover: currentTurn
+    });
+  };
+
+  CT._finishTurn = function (opts) {
+    opts = opts || {};
+    if (mode === "online" && opts.broadcast && conn && conn.open) {
+      conn.send({ type: "ctMove", from: opts.from, to: opts.to });
+    }
+    if (opts.wonByDen) {
+      isGameOver = true;
+      lastCtWinWasDen = true;
+      updateStatus();
+      refreshHighlights();
+      setTimeout(() => showGameOver(opts.mover), 300);
+      return;
+    }
+    currentTurn = CT.other(currentTurn);
+    const winner = CT.checkWinner(board, currentTurn);
+    if (winner) {
+      isGameOver = true;
+      lastCtWinWasDen = false;
+      updateStatus();
+      refreshHighlights();
+      setTimeout(() => showGameOver(winner), 300);
+      return;
+    }
+    updateStatus();
+    refreshHighlights();
+    if (mode === "ai") maybeTriggerAI();
+  };
+
+  CT.runAI = function (side) {
+    const move = CT.chooseAIMove(board, side);
+    if (!move) return;
+    const result = CT.applyMove(board, move.from, move.to);
+    ctAnimateMove(move.from, move.to);
+    CT._finishTurn({
+      broadcast: false,
+      wonByDen: result.wonByDen,
+      mover: side
+    });
+  };
+
+  CT.applyRemote = function (msg) {
+    if (msg.type === "ctMove") {
+      const result = CT.applyMove(board, msg.from, msg.to);
+      ctAnimateMove(msg.from, msg.to);
+      CT._finishTurn({
+        broadcast: false,
+        wonByDen: result.wonByDen,
+        mover: currentTurn
+      });
+    }
+  };
