@@ -205,13 +205,10 @@
     return score;
   };
 
-  // ---- Controller API (used by app.js) ----
-  CK.getLegalPlain = function (point) {
-    return CK.getPlainMoves(board, point);
-  };
-  CK.getLegalCaptures = function (point) {
-    return CK.getCaptures(board, point);
-  };
+
+  // ---- Controller API ----
+  CK.getLegalPlain = function (point) { return CK.getPlainMoves(board, point); };
+  CK.getLegalCaptures = function (point) { return CK.getCaptures(board, point); };
 
   CK.handleClick = function (p) {
     if (ckPendingFrom) {
@@ -220,39 +217,21 @@
       if (match) CK._performCapture(match);
       return;
     }
-
     if (selected) {
       const caps = CK.getCaptures(board, selected);
       const capMatch = caps.find(c => samePoint(c.landing, p));
       if (capMatch) {
-        ckChainOrigin = selected;
-        ckChainSteps = [];
-        CK._performCapture(capMatch);
-        return;
+        ckChainOrigin = selected; ckChainSteps = [];
+        CK._performCapture(capMatch); return;
       }
-
       const plains = CK.getPlainMoves(board, selected);
-      if (plains.some(m => samePoint(m, p))) {
-        CK._performPlain(selected, p);
-        return;
-      }
-
+      if (plains.some(m => samePoint(m, p))) { CK._performPlain(selected, p); return; }
       const clicked = getPiece(board, p);
-      if (clicked && clicked.owner === currentTurn) {
-        selected = p;
-        refreshHighlights();
-        return;
-      }
-      selected = null;
-      refreshHighlights();
-      return;
+      if (clicked && clicked.owner === currentTurn) { selected = p; refreshHighlights(); return; }
+      selected = null; refreshHighlights(); return;
     }
-
     const piece = getPiece(board, p);
-    if (piece && piece.owner === currentTurn) {
-      selected = p;
-      refreshHighlights();
-    }
+    if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); }
   };
 
   CK._performPlain = function (from, to) {
@@ -270,23 +249,12 @@
     const landedAt = result.landedAt;
     animateMove(from, landedAt);
     animateCapture(capture.mid);
-
-    const canContinue = CK.getCaptures(board, landedAt).length > 0;
-    if (canContinue) {
-      ckPendingFrom = landedAt;
-      selected = landedAt;
-      updateStatus();
-      refreshHighlights();
-      return;
+    if (CK.getCaptures(board, landedAt).length > 0) {
+      ckPendingFrom = landedAt; selected = landedAt;
+      updateStatus(); refreshHighlights(); return;
     }
-
-    const finalFrom = ckChainOrigin;
-    const finalSteps = ckChainSteps;
-    ckPendingFrom = null;
-    ckChainOrigin = null;
-    ckChainSteps = [];
-    selected = null;
-    // Always refresh — promotion may have happened on an earlier hop.
+    const finalFrom = ckChainOrigin, finalSteps = ckChainSteps;
+    ckPendingFrom = null; ckChainOrigin = null; ckChainSteps = []; selected = null;
     setTimeout(() => refreshPieceAt(landedAt), 280);
     CK._finishTurn({ broadcast: true, kind: "capture", from: finalFrom, steps: finalSteps });
   };
@@ -300,14 +268,10 @@
     currentTurn = CK.other(currentTurn);
     const winner = CK.checkWinner(board, currentTurn);
     if (winner) {
-      isGameOver = true;
-      updateStatus();
-      refreshHighlights();
-      setTimeout(() => showGameOver(winner), 300);
-      return;
+      isGameOver = true; updateStatus(); refreshHighlights();
+      setTimeout(() => showGameOver(winner), 300); return;
     }
-    updateStatus();
-    refreshHighlights();
+    updateStatus(); refreshHighlights();
     if (mode === "ai") maybeTriggerAI();
   };
 
@@ -321,14 +285,10 @@
       CK._finishTurn({ broadcast: false });
     } else {
       let cur = move.from;
-      for (const step of move.chain) {
-        CK.applyCapture(board, cur, step);
-        cur = step.landing;
-      }
+      for (const step of move.chain) { CK.applyCapture(board, cur, step); cur = step.landing; }
       const finalPos = move.chain[move.chain.length - 1].landing;
       animateChainCaptures(move.from, move.chain, () => {
-        refreshPieceAt(finalPos);
-        CK._finishTurn({ broadcast: false });
+        refreshPieceAt(finalPos); CK._finishTurn({ broadcast: false });
       });
     }
   };
@@ -341,15 +301,10 @@
       CK._finishTurn({ broadcast: false });
     } else if (msg.type === "ckCapture") {
       let cur = msg.from;
-      for (const step of msg.steps) {
-        CK.applyCapture(board, cur, step);
-        cur = step.landing;
-      }
+      for (const step of msg.steps) { CK.applyCapture(board, cur, step); cur = step.landing; }
       const finalPos = msg.steps[msg.steps.length - 1].landing;
       animateChainCaptures(msg.from, msg.steps, () => {
-        refreshPieceAt(finalPos);
-        CK._finishTurn({ broadcast: false });
+        refreshPieceAt(finalPos); CK._finishTurn({ broadcast: false });
       });
     }
   };
-

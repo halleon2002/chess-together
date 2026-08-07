@@ -363,3 +363,89 @@ const CHESS_PIECE_IMAGES = {
   black_knight: "images/chess_black_knight.png",
   black_pawn: "images/chess_black_pawn.png"
 };
+
+
+// ---- Controller API ----
+CHESS.getLegalPlain = function (point) {
+  return CHESS.getLegalMoves(board, point, chessState).map(m => m.to);
+};
+CHESS.getLegalCaptures = function (point) {
+  return CHESS.getLegalMoves(board, point, chessState)
+    .filter(m => getPiece(board, m.to) || m.enPassant)
+    .map(m => ({ landing: m.to }));
+};
+
+CHESS.handleClick = function (p) {
+  if (selected) {
+    const moves = CHESS.getLegalMoves(board, selected, chessState);
+    const match = moves.find(m => samePoint(m.to, p));
+    if (match) { CHESS._performMove(selected, match); return; }
+    const clicked = getPiece(board, p);
+    if (clicked && clicked.owner === currentTurn) { selected = p; refreshHighlights(); return; }
+    selected = null; refreshHighlights(); return;
+  }
+  const piece = getPiece(board, p);
+  if (piece && piece.owner === currentTurn) { selected = p; refreshHighlights(); }
+};
+
+CHESS._performMove = function (from, match) {
+  const row = from.y;
+  const result = CHESS.applyMove(board, from, match.to, chessState);
+  selected = null;
+  chessAnimateMove(from, match.to);
+  if (result.enPassant) {
+    const dir = getPiece(board, match.to).owner === "white" ? 1 : -1;
+    chessAnimateSideCapture({ x: match.to.x, y: match.to.y + dir });
+  }
+  if (result.isCastle) chessAnimateCastleRook(result.isCastle, row);
+  if (result.promoted) setTimeout(() => chessRefreshPieceAt(match.to), 280);
+  CHESS._finishTurn({ broadcast: true, from, to: match.to });
+};
+
+CHESS._finishTurn = function (opts) {
+  opts = opts || {};
+  if (mode === "online" && opts.broadcast && conn && conn.open) {
+    conn.send({ type: "chessMove", from: opts.from, to: opts.to });
+  }
+  currentTurn = CHESS.other(currentTurn);
+  const status = CHESS.checkStatus(board, currentTurn, chessState);
+  if (status.status === "checkmate") {
+    isGameOver = true; updateStatus(); refreshHighlights();
+    setTimeout(() => showGameOver(status.winner), 300); return;
+  }
+  if (status.status === "stalemate") {
+    isGameOver = true; updateStatus(); refreshHighlights();
+    setTimeout(() => showDraw(), 300); return;
+  }
+  updateStatus(); refreshHighlights();
+  if (mode === "ai") maybeTriggerAI();
+};
+
+CHESS.runAI = function (side) {
+  const move = CHESS.chooseAIMove(board, side, chessState, 3);
+  if (!move) return;
+  const row = move.from.y;
+  const result = CHESS.applyMove(board, move.from, move.to, chessState);
+  chessAnimateMove(move.from, move.to);
+  if (result.enPassant) {
+    const dir = getPiece(board, move.to).owner === "white" ? 1 : -1;
+    chessAnimateSideCapture({ x: move.to.x, y: move.to.y + dir });
+  }
+  if (result.isCastle) chessAnimateCastleRook(result.isCastle, row);
+  if (result.promoted) setTimeout(() => chessRefreshPieceAt(move.to), 280);
+  CHESS._finishTurn({ broadcast: false, from: move.from, to: move.to });
+};
+
+CHESS.applyRemote = function (msg) {
+  if (msg.type !== "chessMove") return;
+  const row = msg.from.y;
+  const result = CHESS.applyMove(board, msg.from, msg.to, chessState);
+  chessAnimateMove(msg.from, msg.to);
+  if (result.enPassant) {
+    const dir = getPiece(board, msg.to).owner === "white" ? 1 : -1;
+    chessAnimateSideCapture({ x: msg.to.x, y: msg.to.y + dir });
+  }
+  if (result.isCastle) chessAnimateCastleRook(result.isCastle, row);
+  if (result.promoted) setTimeout(() => chessRefreshPieceAt(msg.to), 280);
+  CHESS._finishTurn({ broadcast: false, from: msg.from, to: msg.to });
+};

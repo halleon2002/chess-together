@@ -1,6 +1,6 @@
 // ================= Central app state & orchestration =================
-// Game-specific logic lives on KAP / CK / CT (see their Controller API).
-// This file only owns shared state, mode flow, and wiring.
+// Game-specific logic lives on KAP / CK / CT / CHESS (Controller API).
+// This file owns shared state, mode flow, and wiring only.
 
 let board = null;
 let currentTurn = "king";
@@ -14,8 +14,9 @@ let ckPendingFrom = null;
 let ckChainOrigin = null;
 let ckChainSteps = [];
 
-// Cờ Thú
+// Cờ Thú / Chess extras
 let lastCtWinWasDen = false;
+let chessState = { enPassantTarget: null };
 
 // Online
 let peer = null, conn = null, isHost = false;
@@ -31,13 +32,12 @@ function isHumanTurn() {
   return currentTurn === humanSide;
 }
 
-// ================= Interaction dispatch =================
+// ================= Interaction / AI dispatch =================
 function onPointClicked(p) {
   if (isGameOver || !isHumanTurn()) return;
   currentModule().handleClick(p);
 }
 
-// ================= AI dispatch =================
 function maybeTriggerAI() {
   if (isGameOver) return;
   if (mode === "ai" && currentTurn !== humanSide) {
@@ -52,17 +52,23 @@ function aiMove(side) {
 
 // ================= Reset / mode flow =================
 function resetBoardLocal() {
-  const mod = currentModule();
-  board = mod.createBoard();
-  currentTurn = G().firstTurn;
+  const g = G();
+  setBoardMode(g.boardMode || "lattice");
+  board = currentModule().createBoard();
+  currentTurn = g.firstTurn;
   selected = null;
   isGameOver = false;
   ckPendingFrom = null;
   ckChainOrigin = null;
   ckChainSteps = [];
   lastCtWinWasDen = false;
+  chessState = { enPassantTarget: null };
   overlay.classList.remove("show");
-  renderBoard();
+
+  if (activeGame === "cothu") ctSyncPieces();
+  else if (activeGame === "chess") chessSyncPieces();
+  else syncPieces();
+
   updateStatus();
   refreshHighlights();
 }
@@ -189,17 +195,17 @@ langToggleBtn.addEventListener("click", () => {
 
 // ================= Init =================
 (async () => {
-  wireGameModules(); // attach KAP / CK / CT onto GAMES
+  wireGameModules();
 
   await preloadPieceImages();
 
-  board = KAP.createBoard(); // initial default
+  board = KAP.createBoard();
   buildStaticLines();
   buildPoints();
   applyStaticTranslations();
   langToggleBtn.textContent = lang === "en" ? "VI" : "EN";
   applyThemeColors();
-  renderBoard();
+  syncPieces();
   updateStatus();
   refreshHighlights();
 })();
