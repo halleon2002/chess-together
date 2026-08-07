@@ -114,7 +114,11 @@
       setOnlineStatus(t("connected"), "success");
       showChatUI();
       if (isHost) {
-        conn.send({ type: "assignSide", game: activeGame, side: otherSide(humanSide) });
+        conn.send({ 
+			type: "assignSide",
+			game: activeGame,
+			side: otherSide(humanSide) });
+		resetBoardLocal();
         beginOnlineGame();
       }
     });
@@ -127,6 +131,7 @@
     if (msg.type === "assignSide") {
       activeGame = msg.game;
       humanSide = msg.side;
+	  resetBoardLocal();
       beginOnlineGame();
     } else if (msg.type === "kapMove") {
       const result = KAP.tryMove(board, msg.from, msg.to);
