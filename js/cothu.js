@@ -116,41 +116,185 @@
     return null;
   };
 
-  CT.evaluateMove = function (board, from, mv, side) {
-    const to = mv.to;
-    const targetPiece = getPiece(board, to);
-    let score = 0;
-    if (targetPiece) score += CT.RANK[targetPiece.type] * 20;
-    if (ctDenOwnerAt(to) === CT.other(side)) score += 100000;
-    const after = cloneBoard(board);
-    CT.applyMove(after, from, to);
+  // Piece values for material evaluation (scaled by rank, elephant slightly less
+  // than pure rank because rat can take it, rat slightly more because of that).
+  const CT_PIECE_VALUE = {
+    rat: 120, cat: 200, dog: 250, wolf: 300,
+    leopard: 400, tiger: 500, lion: 520, elephant: 550
+  };
+
+  // Static evaluation of a position from `side`'s perspective.
+  CT.evaluatePosition = function (board, side) {
     const opp = CT.other(side);
-    let danger = 0;
-    for (const op of ctGetPiecesOf(after, opp)) {
-      for (const omv of CT.getLegalMoves(after, op)) {
-        if (samePoint(omv.to, to) && omv.capture) danger = Math.max(danger, CT.RANK[getPiece(after,to).type]);
+    let score = 0;
+
+    // Immediate win / loss
+    // (den occupancy is checked after moves; here we only see static board)
+    const myDen = CT_DEN[side];
+    const oppDen = CT_DEN[opp];
+    if (getPiece(board, myDen) && getPiece(board, myDen).owner === opp) return -100000;
+    if (getPiece(board, oppDen) && getPiece(board, oppDen).owner === side) return 100000;
+
+    const myPieces = ctGetPiecesOf(board, side);
+    const oppPieces = ctGetPiecesOf(board, opp);
+
+    // Material
+    for (const p of myPieces) score += CT_PIECE_VALUE[getPiece(board, p).type];
+    for (const p of oppPieces) score -= CT_PIECE_VALUE[getPiece(board, p).type];
+
+    // Trap: own piece on enemy trap is nearly dead (rank 0)
+    for (const p of myPieces) {
+      const trap = ctTrapOwnerAt(p);
+      if (trap === opp) score -= CT_PIECE_VALUE[getPiece(board, p).type] * 0.7;
+    }
+    for (const p of oppPieces) {
+      const trap = ctTrapOwnerAt(p);
+      if (trap === side) score += CT_PIECE_VALUE[getPiece(board, p).type] * 0.7;
+    }
+
+    // Progress toward enemy den (weighted by piece strength)
+    for (const p of myPieces) {
+      const pc = getPiece(board, p);
+      const dist = Math.abs(p.x - oppDen.x) + Math.abs(p.y - oppDen.y);
+      score += (14 - dist) * (CT.RANK[pc.type] * 0.8 + 2);
+      // Strong bonus when adjacent to enemy den (threat to enter)
+      if (dist === 1) score += 80 + CT.RANK[pc.type] * 10;
+    }
+    for (const p of oppPieces) {
+      const pc = getPiece(board, p);
+      const dist = Math.abs(p.x - myDen.x) + Math.abs(p.y - myDen.y);
+      score -= (14 - dist) * (CT.RANK[pc.type] * 0.8 + 2);
+      if (dist === 1) score -= 80 + CT.RANK[pc.type] * 10;
+    }
+
+    // Mobility (cheap approximation: count legal moves)
+    let myMob = 0, oppMob = 0;
+    for (const p of myPieces) myMob += CT.getLegalMoves(board, p).length;
+    for (const p of oppPieces) oppMob += CT.getLegalMoves(board, p).length;
+    score += (myMob - oppMob) * 3;
+
+    // Rat in river is often strong (controls jumps, threatens elephant path)
+    for (const p of myPieces) {
+      if (getPiece(board, p).type === "rat" && ctIsRiver(p)) score += 25;
+    }
+    for (const p of oppPieces) {
+      if (getPiece(board, p).type === "rat" && ctIsRiver(p)) score -= 25;
+    }
+
+    // Hanging pieces: penalize if a piece can be captured next turn for free-ish
+    // (opponent can capture it and our piece is valuable)
+    for (const p of myPieces) {
+      const val = CT_PIECE_VALUE[getPiece(board, p).type];
+      for (const op of oppPieces) {
+        for (const mv of CT.getLegalMoves(board, op)) {
+          if (mv.capture && samePoint(mv.to, p)) {
+            score -= val * 0.35;
+            break;
+          }
+        }
       }
     }
-    score -= danger * 15;
-    const denPos = CT_DEN[opp];
-    const distBefore = Math.abs(from.x-denPos.x) + Math.abs(from.y-denPos.y);
-    const distAfter = Math.abs(to.x-denPos.x) + Math.abs(to.y-denPos.y);
-    score += (distBefore - distAfter) * 2;
+    for (const p of oppPieces) {
+      const val = CT_PIECE_VALUE[getPiece(board, p).type];
+      for (const mp of myPieces) {
+        for (const mv of CT.getLegalMoves(board, mp)) {
+          if (mv.capture && samePoint(mv.to, p)) {
+            score += val * 0.35;
+            break;
+          }
+        }
+      }
+    }
+
     return score;
   };
 
-  CT.chooseAIMove = function (board, side) {
-    const pieces = ctGetPiecesOf(board, side);
-    const candidates = [];
-    for (const p of pieces) {
+  // Generate all moves for a side as { from, to } list.
+  CT.allMoves = function (board, side) {
+    const moves = [];
+    for (const p of ctGetPiecesOf(board, side)) {
       for (const mv of CT.getLegalMoves(board, p)) {
-        candidates.push({ from: p, to: mv.to, score: CT.evaluateMove(board, p, mv, side) });
+        moves.push({ from: p, to: mv.to, capture: !!mv.capture });
       }
     }
-    if (candidates.length === 0) return null;
-    candidates.sort((a,b) => b.score - a.score);
-    const best = candidates[0].score;
-    const top = candidates.filter(c => c.score >= best - 0.01);
+    // Capture-first ordering helps alpha-beta pruning
+    moves.sort((a, b) => (b.capture ? 1 : 0) - (a.capture ? 1 : 0));
+    return moves;
+  };
+
+  // Alpha-beta minimax. Returns score from rootSide's perspective.
+  CT.minimax = function (board, depth, alpha, beta, maximizing, rootSide) {
+    const side = maximizing ? rootSide : CT.other(rootSide);
+
+    // Terminal: den already occupied or no moves
+    const oppDen = CT_DEN[CT.other(rootSide)];
+    const myDen = CT_DEN[rootSide];
+    if (getPiece(board, oppDen) && getPiece(board, oppDen).owner === rootSide) return 100000 + depth;
+    if (getPiece(board, myDen) && getPiece(board, myDen).owner === CT.other(rootSide)) return -100000 - depth;
+
+    if (depth === 0) return CT.evaluatePosition(board, rootSide);
+
+    const moves = CT.allMoves(board, side);
+    if (moves.length === 0) {
+      // Side to move has no moves → loses
+      return maximizing ? (-100000 - depth) : (100000 + depth);
+    }
+
+    if (maximizing) {
+      let best = -Infinity;
+      for (const m of moves) {
+        const next = cloneBoard(board);
+        const result = CT.applyMove(next, m.from, m.to);
+        let val;
+        if (result.wonByDen) val = 100000 + depth;
+        else val = CT.minimax(next, depth - 1, alpha, beta, false, rootSide);
+        if (val > best) best = val;
+        if (best > alpha) alpha = best;
+        if (beta <= alpha) break;
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (const m of moves) {
+        const next = cloneBoard(board);
+        const result = CT.applyMove(next, m.from, m.to);
+        let val;
+        if (result.wonByDen) val = -100000 - depth;
+        else val = CT.minimax(next, depth - 1, alpha, beta, true, rootSide);
+        if (val < best) best = val;
+        if (best < beta) beta = best;
+        if (beta <= alpha) break;
+      }
+      return best;
+    }
+  };
+
+  // Search depth: 2 is fast; 3 is stronger but still fine on modern phones.
+  CT.AI_DEPTH = 3;
+
+  CT.chooseAIMove = function (board, side) {
+    const moves = CT.allMoves(board, side);
+    if (moves.length === 0) return null;
+
+    // Instant win if available
+    for (const m of moves) {
+      const next = cloneBoard(board);
+      const result = CT.applyMove(next, m.from, m.to);
+      if (result.wonByDen) return { from: m.from, to: m.to };
+    }
+
+    let bestScore = -Infinity;
+    const scored = [];
+    for (const m of moves) {
+      const next = cloneBoard(board);
+      CT.applyMove(next, m.from, m.to);
+      const score = CT.minimax(next, CT.AI_DEPTH - 1, -Infinity, Infinity, false, side);
+      scored.push({ from: m.from, to: m.to, score });
+      if (score > bestScore) bestScore = score;
+    }
+
+    // Pick randomly among moves within a small margin of the best (variety)
+    const top = scored.filter(c => c.score >= bestScore - 5);
     return top[Math.floor(Math.random() * top.length)];
   };
 
