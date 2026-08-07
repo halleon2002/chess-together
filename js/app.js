@@ -243,10 +243,13 @@
 
 // ================= Reset / mode flow =================
   function resetBoardLocal() {
-    setBoardMode(activeGame === "cothu");
-    if (activeGame === "kap") board = KAP.createBoard();
-    else if (activeGame === "checkers") board = CK.createBoard();
-    else board = CT.createBoard();
+    const BOARD_FACTORY = {
+    kap: KAP.createBoard,
+    checkers: CK.createBoard,
+    cothu: CT.createBoard
+};
+
+	board = BOARD_FACTORY[activeGame]();
     currentTurn = G().firstTurn;
     selected = null;
     isGameOver = false;
