@@ -409,3 +409,14 @@
     padding: 8px 14px;
     font-size: 0.82rem;
   }
+
+  /* Landing page: only chooser visible */
+  body.landing .status-bar,
+  body.landing .board-wrap,
+  body.landing .controls,
+  body.landing .rules-note {
+    display: none !important;
+  }
+  body.landing .subtitle {
+    margin-bottom: 8px;
+  }

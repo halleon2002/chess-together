@@ -159,6 +159,7 @@ function onData(msg) {
 function beginOnlineGame() {
   mode = "online";
   startScreen.classList.remove("show");
+  if (typeof showPlayUI === "function") showPlayUI();
   applyThemeColors();
   updateSubtitle();
   resetScore();

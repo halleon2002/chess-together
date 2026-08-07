@@ -94,6 +94,10 @@ function openGameChoiceScreen() {
   startScreen.classList.remove("show");
   overlay.classList.remove("show");
   gameChoiceScreen.classList.add("show");
+  showLandingUI();
+  gameTitle.textContent = t("appTitle");
+  subtitle.textContent = t("chooseGameToBegin");
+  rulesNote.innerHTML = "";
 }
 
 function selectGame(gameKey) {
@@ -159,6 +163,7 @@ document.getElementById("joinRoomBtn").addEventListener("click", () => {
 document.getElementById("startBtn").addEventListener("click", () => {
   teardownConnection();
   startScreen.classList.remove("show");
+  showPlayUI();
   applyThemeColors();
   updateSubtitle();
   resetScore();
@@ -193,19 +198,32 @@ langToggleBtn.addEventListener("click", () => {
   refreshAllText();
 });
 
+// ================= Landing / play UI =================
+function showPlayUI() {
+  document.body.classList.remove("landing");
+  document.body.classList.add("playing");
+}
+
+function showLandingUI() {
+  document.body.classList.add("landing");
+  document.body.classList.remove("playing");
+}
+
 // ================= Init =================
 (async () => {
   wireGameModules();
 
   await preloadPieceImages();
 
-  board = KAP.createBoard();
+  // Build lattice geometry once (hidden until a lattice game starts)
   buildStaticLines();
   buildPoints();
   applyStaticTranslations();
   langToggleBtn.textContent = lang === "en" ? "VI" : "EN";
-  applyThemeColors();
-  syncPieces();
-  updateStatus();
-  refreshHighlights();
+
+  // Landing page: game chooser only — no board visible
+  showLandingUI();
+  gameTitle.textContent = t("appTitle");
+  subtitle.textContent = t("chooseGameToBegin");
+  rulesNote.innerHTML = "";
 })();
