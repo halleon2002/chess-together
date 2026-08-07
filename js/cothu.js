@@ -116,83 +116,282 @@
     return null;
   };
 
-  CT.evaluateMove = function (board, from, mv, side) {
-    const to = mv.to;
-    const targetPiece = getPiece(board, to);
-    let score = 0;
-    if (targetPiece) score += CT.RANK[targetPiece.type] * 20;
-    if (ctDenOwnerAt(to) === CT.other(side)) score += 100000;
-    const after = cloneBoard(board);
-    CT.applyMove(after, from, to);
+  // Piece values for material evaluation (scaled by rank, elephant slightly less
+  // than pure rank because rat can take it, rat slightly more because of that).
+  const CT_PIECE_VALUE = {
+    rat: 120, cat: 200, dog: 250, wolf: 300,
+    leopard: 400, tiger: 500, lion: 520, elephant: 550
+  };
+
+  // Static evaluation of a position from `side`'s perspective.
+  CT.evaluatePosition = function (board, side) {
     const opp = CT.other(side);
-    let danger = 0;
-    for (const op of ctGetPiecesOf(after, opp)) {
-      for (const omv of CT.getLegalMoves(after, op)) {
-        if (samePoint(omv.to, to) && omv.capture) danger = Math.max(danger, CT.RANK[getPiece(after,to).type]);
+    let score = 0;
+
+    // Immediate win / loss
+    // (den occupancy is checked after moves; here we only see static board)
+    const myDen = CT_DEN[side];
+    const oppDen = CT_DEN[opp];
+    if (getPiece(board, myDen) && getPiece(board, myDen).owner === opp) return -100000;
+    if (getPiece(board, oppDen) && getPiece(board, oppDen).owner === side) return 100000;
+
+    const myPieces = ctGetPiecesOf(board, side);
+    const oppPieces = ctGetPiecesOf(board, opp);
+
+    // Material
+    for (const p of myPieces) score += CT_PIECE_VALUE[getPiece(board, p).type];
+    for (const p of oppPieces) score -= CT_PIECE_VALUE[getPiece(board, p).type];
+
+    // Trap: own piece on enemy trap is nearly dead (rank 0)
+    for (const p of myPieces) {
+      const trap = ctTrapOwnerAt(p);
+      if (trap === opp) score -= CT_PIECE_VALUE[getPiece(board, p).type] * 0.7;
+    }
+    for (const p of oppPieces) {
+      const trap = ctTrapOwnerAt(p);
+      if (trap === side) score += CT_PIECE_VALUE[getPiece(board, p).type] * 0.7;
+    }
+
+    // Progress toward enemy den (weighted by piece strength)
+    for (const p of myPieces) {
+      const pc = getPiece(board, p);
+      const dist = Math.abs(p.x - oppDen.x) + Math.abs(p.y - oppDen.y);
+      score += (14 - dist) * (CT.RANK[pc.type] * 0.8 + 2);
+      // Strong bonus when adjacent to enemy den (threat to enter)
+      if (dist === 1) score += 80 + CT.RANK[pc.type] * 10;
+    }
+    for (const p of oppPieces) {
+      const pc = getPiece(board, p);
+      const dist = Math.abs(p.x - myDen.x) + Math.abs(p.y - myDen.y);
+      score -= (14 - dist) * (CT.RANK[pc.type] * 0.8 + 2);
+      if (dist === 1) score -= 80 + CT.RANK[pc.type] * 10;
+    }
+
+    // Mobility (cheap approximation: count legal moves)
+    let myMob = 0, oppMob = 0;
+    for (const p of myPieces) myMob += CT.getLegalMoves(board, p).length;
+    for (const p of oppPieces) oppMob += CT.getLegalMoves(board, p).length;
+    score += (myMob - oppMob) * 3;
+
+    // Rat in river is often strong (controls jumps, threatens elephant path)
+    for (const p of myPieces) {
+      if (getPiece(board, p).type === "rat" && ctIsRiver(p)) score += 25;
+    }
+    for (const p of oppPieces) {
+      if (getPiece(board, p).type === "rat" && ctIsRiver(p)) score -= 25;
+    }
+
+    // Hanging pieces: penalize if a piece can be captured next turn for free-ish
+    // (opponent can capture it and our piece is valuable)
+    for (const p of myPieces) {
+      const val = CT_PIECE_VALUE[getPiece(board, p).type];
+      for (const op of oppPieces) {
+        for (const mv of CT.getLegalMoves(board, op)) {
+          if (mv.capture && samePoint(mv.to, p)) {
+            score -= val * 0.35;
+            break;
+          }
+        }
       }
     }
-    score -= danger * 15;
-    const denPos = CT_DEN[opp];
-    const distBefore = Math.abs(from.x-denPos.x) + Math.abs(from.y-denPos.y);
-    const distAfter = Math.abs(to.x-denPos.x) + Math.abs(to.y-denPos.y);
-    score += (distBefore - distAfter) * 2;
+    for (const p of oppPieces) {
+      const val = CT_PIECE_VALUE[getPiece(board, p).type];
+      for (const mp of myPieces) {
+        for (const mv of CT.getLegalMoves(board, mp)) {
+          if (mv.capture && samePoint(mv.to, p)) {
+            score += val * 0.35;
+            break;
+          }
+        }
+      }
+    }
+
     return score;
   };
 
-  CT.chooseAIMove = function (board, side) {
-    const pieces = ctGetPiecesOf(board, side);
-    const candidates = [];
-    for (const p of pieces) {
+  // Generate all moves for a side as { from, to } list.
+  CT.allMoves = function (board, side) {
+    const moves = [];
+    for (const p of ctGetPiecesOf(board, side)) {
       for (const mv of CT.getLegalMoves(board, p)) {
-        candidates.push({ from: p, to: mv.to, score: CT.evaluateMove(board, p, mv, side) });
+        moves.push({ from: p, to: mv.to, capture: !!mv.capture });
       }
     }
-    if (candidates.length === 0) return null;
-    candidates.sort((a,b) => b.score - a.score);
-    const best = candidates[0].score;
-    const top = candidates.filter(c => c.score >= best - 0.01);
+    // Capture-first ordering helps alpha-beta pruning
+    moves.sort((a, b) => (b.capture ? 1 : 0) - (a.capture ? 1 : 0));
+    return moves;
+  };
+
+  // Alpha-beta minimax. Returns score from rootSide's perspective.
+  CT.minimax = function (board, depth, alpha, beta, maximizing, rootSide) {
+    const side = maximizing ? rootSide : CT.other(rootSide);
+
+    // Terminal: den already occupied or no moves
+    const oppDen = CT_DEN[CT.other(rootSide)];
+    const myDen = CT_DEN[rootSide];
+    if (getPiece(board, oppDen) && getPiece(board, oppDen).owner === rootSide) return 100000 + depth;
+    if (getPiece(board, myDen) && getPiece(board, myDen).owner === CT.other(rootSide)) return -100000 - depth;
+
+    if (depth === 0) return CT.evaluatePosition(board, rootSide);
+
+    const moves = CT.allMoves(board, side);
+    if (moves.length === 0) {
+      // Side to move has no moves → loses
+      return maximizing ? (-100000 - depth) : (100000 + depth);
+    }
+
+    if (maximizing) {
+      let best = -Infinity;
+      for (const m of moves) {
+        const next = cloneBoard(board);
+        const result = CT.applyMove(next, m.from, m.to);
+        let val;
+        if (result.wonByDen) val = 100000 + depth;
+        else val = CT.minimax(next, depth - 1, alpha, beta, false, rootSide);
+        if (val > best) best = val;
+        if (best > alpha) alpha = best;
+        if (beta <= alpha) break;
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (const m of moves) {
+        const next = cloneBoard(board);
+        const result = CT.applyMove(next, m.from, m.to);
+        let val;
+        if (result.wonByDen) val = -100000 - depth;
+        else val = CT.minimax(next, depth - 1, alpha, beta, true, rootSide);
+        if (val < best) best = val;
+        if (best < beta) beta = best;
+        if (beta <= alpha) break;
+      }
+      return best;
+    }
+  };
+
+  // Search depth: 2 is fast; 3 is stronger but still fine on modern phones.
+  CT.AI_DEPTH = 3;
+
+  CT.chooseAIMove = function (board, side) {
+    const moves = CT.allMoves(board, side);
+    if (moves.length === 0) return null;
+
+    // Instant win if available
+    for (const m of moves) {
+      const next = cloneBoard(board);
+      const result = CT.applyMove(next, m.from, m.to);
+      if (result.wonByDen) return { from: m.from, to: m.to };
+    }
+
+    let bestScore = -Infinity;
+    const scored = [];
+    for (const m of moves) {
+      const next = cloneBoard(board);
+      CT.applyMove(next, m.from, m.to);
+      const score = CT.minimax(next, CT.AI_DEPTH - 1, -Infinity, Infinity, false, side);
+      scored.push({ from: m.from, to: m.to, score });
+      if (score > bestScore) bestScore = score;
+    }
+
+    // Pick randomly among moves within a small margin of the best (variety)
+    const top = scored.filter(c => c.score >= bestScore - 5);
     return top[Math.floor(Math.random() * top.length)];
   };
 
+  // ---- Controller API (used by app.js) ----
+  CT.getLegalPlain = function (point) {
+    return CT.getLegalMoves(board, point).filter(m => !m.capture).map(m => m.to);
+  };
+  CT.getLegalCaptures = function (point) {
+    return CT.getLegalMoves(board, point).filter(m => m.capture).map(m => ({ landing: m.to }));
+  };
 
-  const GAMES = {
-    kap: {
-      key: "kap",
-      title: { en: "Kings & Pawns", vi: "Vua & Tốt" },
-      sideA: { key: "king", label: { en: "King", vi: "Vua" } },
-      sideB: { key: "pawn", label: { en: "Pawn", vi: "Tốt" } },
-      firstTurn: "king",
-      rulesNote: {
-        en: "<b>Kings</b> move one step along any line and capture by landing so that enemy pawns flank them on both sides of any straight line. <b>Pawns</b> move one step but cannot capture &mdash; they win by trapping both Kings with no legal move.",
-        vi: "<b>Vua</b> di chuyển một bước theo bất kỳ đường nào và ăn quân bằng cách đỮứng giữa hai Tốt đối phương trên cùng một đường thẳng. <b>Tốt</b> di chuyển một bước nhưng không thể ăn quân &mdash; Tốt thắng khi dồn cả hai Vua vào thế không còn nước đi."
-      },
-      colors: { a: "var(--king)", aGlow: "var(--king-glow)", b: "var(--pawn)", bGlow: "var(--pawn-glow)" }
-    },
-    checkers: {
-      key: "checkers",
-      title: { en: "Checkers", vi: "Cờ Nhào" },
-      sideA: { key: "white", label: { en: "White", vi: "Trắng" } },
-      sideB: { key: "black", label: { en: "Black", vi: "Đen" } },
-      firstTurn: "white",
-      rulesNote: {
-        en: "Pieces move one step forward (diagonal or straight). Capture by jumping over an adjacent enemy into the empty point beyond. Captures are <b>mandatory</b> and chain into multi-jumps. Reaching the far row promotes a piece to <b>King</b>, which can move and capture in any direction.",
-        vi: "Quân cờ di chuyển một bước (chéo hoặc thẳng). Ăn quân bằng cách nhảy qua quân đối phương liền kề để đáp xuống ô trống phía sau. Ăn quân là <b>bắt buộc</b> và có thể ăn liên hoàn nhiều lần. Khi đến hàng cuối cùng, quân sẽ được phong <b>Vương</b>, di chuyển và ăn quân theo mọi hướng."
-      },
-      colors: { a: "var(--white-pc)", aGlow: "var(--white-glow)", b: "var(--black-pc)", bGlow: "var(--black-glow)" }
-    },
-    cothu: {
-      key: "cothu",
-      title: { en: "Cờ Thú (Jungle Chess)", vi: "Cờ Thú" },
-      sideA: { key: "top", label: { en: "Top", vi: "Trên" } },
-      sideB: { key: "bottom", label: { en: "Bottom", vi: "Dưới" } },
-      firstTurn: "top",
-      rulesNote: {
-        en: "8 ranked animals (Rat &lt; Cat &lt; Dog &lt; Wolf &lt; Leopard &lt; Tiger &lt; Lion &lt; Elephant). A piece captures any enemy of equal or lower rank &mdash; except the <b>Rat can capture the Elephant</b> (but not vice versa). Only the Rat may enter the river; Lion and Tiger can leap across it (blocked if a Rat sits in the water). Landing on an enemy trap (next to their own den) drops a piece's rank to 0. <b>Win by marching any piece into the opponent's den.</b>",
-        vi: "8 con vật xếp hạng (Chuột &lt; Mèo &lt; Chó &lt; Sói &lt; Báo &lt; Hổ &lt; Sư Tử &lt; Tượng). Một quân ăn được bất kỳ quân địch nào cùng hạng hoặc thấp hơn &mdash; ngoại trừ <b>Chuột có thể ăn Tượng</b> (nhưng ngược lại thì không). Chỉ Chuột mới được xuống sông; Sư Tử và Hổ có thể nhảy qua sông (bị chặn nếu có Chuột đang ở dưới nước trên đường nhảy). Đứng vào bẫy của đối phương (cạnh chuồng của họ) khiến hạng của quân đó về 0. <b>Thắng khi đưa bất kỳ quân nào vào chuồng đối phương.</b>"
-      },
-      colors: { a: "var(--king)", aGlow: "var(--king-glow)", b: "var(--pawn)", bGlow: "var(--pawn-glow)" },
-      isGrid: true
+  CT.handleClick = function (p) {
+    if (selected) {
+      const moves = CT.getLegalMoves(board, selected);
+      const match = moves.find(m => samePoint(m.to, p));
+      if (match) {
+        CT._performMove(selected, p);
+        return;
+      }
+      const clicked = getPiece(board, p);
+      if (clicked && clicked.owner === currentTurn) {
+        selected = p;
+        refreshHighlights();
+        return;
+      }
+      selected = null;
+      refreshHighlights();
+      return;
+    }
+    const piece = getPiece(board, p);
+    if (piece && piece.owner === currentTurn) {
+      selected = p;
+      refreshHighlights();
     }
   };
 
-  let activeGame = "kap";
+  CT._performMove = function (from, to) {
+    const result = CT.applyMove(board, from, to);
+    selected = null;
+    ctAnimateMove(from, to);
+    CT._finishTurn({
+      broadcast: true,
+      from,
+      to,
+      wonByDen: result.wonByDen,
+      mover: currentTurn
+    });
+  };
+
+  CT._finishTurn = function (opts) {
+    opts = opts || {};
+    if (mode === "online" && opts.broadcast && conn && conn.open) {
+      conn.send({ type: "ctMove", from: opts.from, to: opts.to });
+    }
+    if (opts.wonByDen) {
+      isGameOver = true;
+      lastCtWinWasDen = true;
+      updateStatus();
+      refreshHighlights();
+      setTimeout(() => showGameOver(opts.mover), 300);
+      return;
+    }
+    currentTurn = CT.other(currentTurn);
+    const winner = CT.checkWinner(board, currentTurn);
+    if (winner) {
+      isGameOver = true;
+      lastCtWinWasDen = false;
+      updateStatus();
+      refreshHighlights();
+      setTimeout(() => showGameOver(winner), 300);
+      return;
+    }
+    updateStatus();
+    refreshHighlights();
+    if (mode === "ai") maybeTriggerAI();
+  };
+
+  CT.runAI = function (side) {
+    const move = CT.chooseAIMove(board, side);
+    if (!move) return;
+    const result = CT.applyMove(board, move.from, move.to);
+    ctAnimateMove(move.from, move.to);
+    CT._finishTurn({
+      broadcast: false,
+      wonByDen: result.wonByDen,
+      mover: side
+    });
+  };
+
+  CT.applyRemote = function (msg) {
+    if (msg.type === "ctMove") {
+      const result = CT.applyMove(board, msg.from, msg.to);
+      ctAnimateMove(msg.from, msg.to);
+      CT._finishTurn({
+        broadcast: false,
+        wonByDen: result.wonByDen,
+        mover: currentTurn
+      });
+    }
+  };

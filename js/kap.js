@@ -120,3 +120,83 @@
     const top = candidates.filter(c => c.score >= best - 0.01);
     return top[Math.floor(Math.random() * top.length)];
   };
+
+  // ---- Controller API (used by app.js) ----
+  KAP.getLegalPlain = function (point) {
+    return KAP.getLegalMoves(board, point);
+  };
+  KAP.getLegalCaptures = function (/* point */) {
+    return [];
+  };
+
+  KAP.handleClick = function (p) {
+    if (selected) {
+      const from = selected;
+      const result = KAP.tryMove(board, from, p);
+      if (result) {
+        selected = null;
+        KAP._afterMove({ broadcast: true, from, to: p, captured: result.captured });
+        return;
+      }
+      const piece = getPiece(board, p);
+      if (piece && piece.owner === currentTurn) {
+        selected = p;
+        refreshHighlights();
+        return;
+      }
+      selected = null;
+      refreshHighlights();
+      return;
+    }
+    const piece = getPiece(board, p);
+    if (piece && piece.owner === currentTurn) {
+      selected = p;
+      refreshHighlights();
+    }
+  };
+
+  KAP._afterMove = function (opts) {
+    opts = opts || {};
+    if (opts.from && opts.to) animateMove(opts.from, opts.to);
+    if (opts.captured) for (const c of opts.captured) animateCapture(c);
+    if (mode === "online" && opts.broadcast && conn && conn.open) {
+      conn.send({ type: "kapMove", from: opts.from, to: opts.to });
+    }
+    const winner = KAP.checkWinner(board);
+    if (winner) {
+      isGameOver = true;
+      updateStatus();
+      refreshHighlights();
+      setTimeout(() => showGameOver(winner), 300);
+      return;
+    }
+    currentTurn = KAP.other(currentTurn);
+    updateStatus();
+    refreshHighlights();
+    if (mode === "ai") maybeTriggerAI();
+  };
+
+  KAP.runAI = function (side) {
+    const move = KAP.chooseAIMove(board, side);
+    if (!move) return;
+    const result = KAP.tryMove(board, move.from, move.to);
+    KAP._afterMove({
+      broadcast: false,
+      from: move.from,
+      to: move.to,
+      captured: result ? result.captured : []
+    });
+  };
+
+  KAP.applyRemote = function (msg) {
+    if (msg.type === "kapMove") {
+      const result = KAP.tryMove(board, msg.from, msg.to);
+      KAP._afterMove({
+        broadcast: false,
+        from: msg.from,
+        to: msg.to,
+        captured: result ? result.captured : []
+      });
+    }
+  };
+
