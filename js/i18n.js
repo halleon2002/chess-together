@@ -14,6 +14,7 @@
       gcCheckersTitle: "Checkers",
       gcCheckersDesc: "Classic jump-capture checkers, adapted to this board's diagonal + straight lines. Forced captures, multi-jumps, promotion.",
       gcCothuTitle: "Cờ Thú (Jungle Chess)",
+      gcChessTitle: "Chess",
       gcCothuDesc: "Vietnamese animal chess on its own 7×9 board: rank-based captures, river, traps, and a Rat that can take down an Elephant. Win by reaching the enemy den.",
       modeScreenSubtitle: "Choose your side and opponent",
       playAsLabel: "Play as",
@@ -55,7 +56,10 @@
       chatTitle: "Chat",
       chatPlaceholder: "Type a message...",
       chatSendBtn: "Send",
-      chatConnectedNotice: "You're connected — say hi!"
+      chatConnectedNotice: "You're connected — say hi!",
+      chessCheckmate: "Checkmate.",
+      chessStalemate: "Stalemate — no legal moves and not in check.",
+      drawTitle: "Draw!"
     },
     vi: {
       appTitle: "Trò Chơi Cờ",
@@ -69,6 +73,7 @@
       gcCheckersTitle: "Cờ Nhào",
       gcCheckersDesc: "Cờ đam nhảy ăn quân truyền thống, chuyển thể sang đường chéo và đường thẳng của bàn cờ này. Ăn quân bắt buộc, ăn liên hoàn, phong Vương.",
       gcCothuTitle: "Cờ Thú",
+      gcChessTitle: "Cờ Vua",
       gcCothuDesc: "Cờ thú Việt Nam trên bàn cờ riêng 7×9: ăn quân theo hạng, có sông, có bẫy, và Chuột có thể hạ gục Tượng. Thắng bằng cách vào chuồng đối phương.",
       modeScreenSubtitle: "Chọn phe và đối thủ",
       playAsLabel: "Chơi làm",
@@ -110,7 +115,10 @@
       chatTitle: "Trò chuyện",
       chatPlaceholder: "Nhập tin nhắn...",
       chatSendBtn: "Gửi",
-      chatConnectedNotice: "Bạn đã kết nối — chào hỏi nhau nào!"
+      chatConnectedNotice: "Bạn đã kết nối — chào hỏi nhau nào!",
+      chessCheckmate: "Chiếu bí.",
+      chessStalemate: "Hòa cờ — hết nước đi hợp lệ và không bị chiếu.",
+      drawTitle: "Hòa!"
     }
   };
 
